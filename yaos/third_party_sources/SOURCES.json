@@ -1,0 +1,14 @@
+[
+  {
+    "name": "openssl-3.0.16.tar.gz",
+    "url": "https://github.com/openssl/openssl/releases/download/openssl-3.0.16/openssl-3.0.16.tar.gz",
+    "size_bytes": 15334967,
+    "sha256": "57e03c50feab5d31b152af2b764f10379aecd8ee92f16c985983ce4a99f7ef86"
+  },
+  {
+    "name": "libplist-2.6.0.tar.bz2",
+    "url": "https://github.com/libimobiledevice/libplist/releases/download/2.6.0/libplist-2.6.0.tar.bz2",
+    "size_bytes": 493169,
+    "sha256": "67be9ee3169366589c92dc7c22809b90f51911dd9de22520c39c9a64fb047c9c"
+  }
+]

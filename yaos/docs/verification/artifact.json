@@ -1,0 +1,22 @@
+{
+  "apk": "FreeCast-TV-0.1.0.apk",
+  "size_bytes": 14842057,
+  "sha256": "606a614f5b961e993a4e003ce59be82a3e9eb652b73fa3510a41d7522951cd21",
+  "certificate_sha256": "f7b5180056f212c59085b6ac0e3e9f92f06411f85ce83bfb8bf29e0af17f373b",
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86_64"
+  ],
+  "jvm_tests": {
+    "tests": 53,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "Error": 0,
+    "Warning": 13,
+    "Information": 0
+  }
+}

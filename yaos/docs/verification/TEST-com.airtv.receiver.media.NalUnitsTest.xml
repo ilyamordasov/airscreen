@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.airtv.receiver.media.NalUnitsTest" tests="17" skipped="0" failures="0" errors="0" timestamp="2026-11-08T15:50:05" hostname="bb52e4875793" time="0.004">
+  <properties/>
+  <testcase name="extracted parameter sets always use four byte start codes" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="access unit without start code is neither" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="extraction respects the length limit" classname="com.airtv.receiver.media.NalUnitsTest" time="0.002"/>
+  <testcase name="h265 idr is a keyframe" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="h265 vps sps pps access unit is codec config" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="h264 idr access unit is not codec config" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="h264 sps prefixed idr is a keyframe but not codec config" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="h265 vps sps pps are extracted from a keyframe access unit" classname="com.airtv.receiver.media.NalUnitsTest" time="0.001"/>
+  <testcase name="three byte start codes are also recognised" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="only the first length bytes are inspected" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="parameter sets are extracted from an sps pps idr access unit" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="h264 idr access unit is a keyframe" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="describe lists nal types for logging" classname="com.airtv.receiver.media.NalUnitsTest" time="0.001"/>
+  <testcase name="parameter sets are extracted from a config only access unit" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="an access unit without parameter sets yields null" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="h264 sps plus pps access unit is codec config" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <testcase name="sps pps idr access unit is still reported as a keyframe" classname="com.airtv.receiver.media.NalUnitsTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

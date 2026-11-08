@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.airtv.receiver.airplay.DeviceIdentityTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-08T15:50:05" hostname="bb52e4875793" time="0.041">
+  <properties/>
+  <testcase name="Russian and emoji names fit both AirPlay and prefixed RAOP DNS labels" classname="com.airtv.receiver.airplay.DeviceIdentityTest" time="0.024"/>
+  <testcase name="first octet is a locally administered unicast address" classname="com.airtv.receiver.airplay.DeviceIdentityTest" time="0.013"/>
+  <testcase name="service name is trimmed" classname="com.airtv.receiver.airplay.DeviceIdentityTest" time="0.0"/>
+  <testcase name="mac address is stable for the same seed" classname="com.airtv.receiver.airplay.DeviceIdentityTest" time="0.0"/>
+  <testcase name="control characters cannot enter service labels" classname="com.airtv.receiver.airplay.DeviceIdentityTest" time="0.001"/>
+  <testcase name="service name is truncated to the dns sd limit" classname="com.airtv.receiver.airplay.DeviceIdentityTest" time="0.0"/>
+  <testcase name="mac address has canonical colon separated form" classname="com.airtv.receiver.airplay.DeviceIdentityTest" time="0.001"/>
+  <testcase name="mac address differs between devices" classname="com.airtv.receiver.airplay.DeviceIdentityTest" time="0.001"/>
+  <testcase name="service name falls back when the device name is blank" classname="com.airtv.receiver.airplay.DeviceIdentityTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

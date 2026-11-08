@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.airtv.receiver.airplay.AdvertisedDisplayTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-08T15:50:05" hostname="bb52e4875793" time="0.005">
+  <properties/>
+  <testcase name="refresh rate is clamped to a sane range" classname="com.airtv.receiver.airplay.AdvertisedDisplayTest" time="0.004"/>
+  <testcase name="a 4k 60hz panel is advertised as is" classname="com.airtv.receiver.airplay.AdvertisedDisplayTest" time="0.0"/>
+  <testcase name="portrait reports are rotated to landscape" classname="com.airtv.receiver.airplay.AdvertisedDisplayTest" time="0.0"/>
+  <testcase name="a 1080p panel is advertised as is" classname="com.airtv.receiver.airplay.AdvertisedDisplayTest" time="0.0"/>
+  <testcase name="dimensions are rounded to even numbers" classname="com.airtv.receiver.airplay.AdvertisedDisplayTest" time="0.0"/>
+  <testcase name="unusable metrics fall back to 1080p60" classname="com.airtv.receiver.airplay.AdvertisedDisplayTest" time="0.0"/>
+  <testcase name="resolutions above uhd are capped keeping aspect ratio" classname="com.airtv.receiver.airplay.AdvertisedDisplayTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

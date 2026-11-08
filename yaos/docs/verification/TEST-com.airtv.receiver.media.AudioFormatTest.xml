@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.airtv.receiver.media.AudioFormatTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-08T15:50:05" hostname="bb52e4875793" time="0.006">
+  <properties/>
+  <testcase name="formats have names fit for the screen" classname="com.airtv.receiver.media.AudioFormatTest" time="0.001"/>
+  <testcase name="an unknown content type is described by its number" classname="com.airtv.receiver.media.AudioFormatTest" time="0.004"/>
+  <testcase name="aac formats are playable and alac is not" classname="com.airtv.receiver.media.AudioFormatTest" time="0.0"/>
+  <testcase name="an unknown content type has no format" classname="com.airtv.receiver.media.AudioFormatTest" time="0.0"/>
+  <testcase name="content types map to the airplay codecs" classname="com.airtv.receiver.media.AudioFormatTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

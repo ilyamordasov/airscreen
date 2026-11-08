@@ -1,0 +1,17 @@
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+Signer #1 certificate DN: CN=FreeCast TV
+Signer #1 certificate SHA-256 digest: f7b5180056f212c59085b6ac0e3e9f92f06411f85ce83bfb8bf29e0af17f373b
+Signer #1 certificate SHA-1 digest: f36bfed556dbf2dab9164187a2ca4c8bb8f14d25
+Signer #1 certificate MD5 digest: e9e33c6c8b36cead6f96d3ef16ef884d
+Signer #1 key algorithm: RSA
+Signer #1 key size (bits): 3072
+Signer #1 public key SHA-256 digest: f0fde65529e62951a70ce6b2b50d3c6accb0970d89ec575f4b4c1ee1a9693450
+Signer #1 public key SHA-1 digest: 9271b6b7719709e208dcc266348940a6290d0e63
+Signer #1 public key MD5 digest: cae3b0465186001c87717458bdd2a817

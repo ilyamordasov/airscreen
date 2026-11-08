@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.airtv.receiver.ui.VideoLayoutTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-08T15:50:05" hostname="bb52e4875793" time="0.002">
+  <properties/>
+  <testcase name="a matching landscape stream fills the screen" classname="com.airtv.receiver.ui.VideoLayoutTest" time="0.001"/>
+  <testcase name="a four by three stream is pillarboxed on a sixteen by nine screen" classname="com.airtv.receiver.ui.VideoLayoutTest" time="0.0"/>
+  <testcase name="a 1080p stream is scaled up to fill a 4k screen" classname="com.airtv.receiver.ui.VideoLayoutTest" time="0.0"/>
+  <testcase name="a stream wider than the screen is limited by the screen width" classname="com.airtv.receiver.ui.VideoLayoutTest" time="0.0"/>
+  <testcase name="the aspect ratio is preserved when scaling down" classname="com.airtv.receiver.ui.VideoLayoutTest" time="0.0"/>
+  <testcase name="the fitted rect never exceeds the screen" classname="com.airtv.receiver.ui.VideoLayoutTest" time="0.0"/>
+  <testcase name="a portrait stream is limited by the screen height" classname="com.airtv.receiver.ui.VideoLayoutTest" time="0.0"/>
+  <testcase name="unusable inputs yield null" classname="com.airtv.receiver.ui.VideoLayoutTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
