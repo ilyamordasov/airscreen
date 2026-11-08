@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/diagnostics_scroll" android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:fadeScrollbars="false" android:focusable="true" android:overScrollMode="ifContentScrolls"
+    android:paddingStart="24dp" android:paddingTop="6dp" android:paddingEnd="24dp" android:paddingBottom="12dp"
+    android:scrollbarStyle="outsideInset">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:lineSpacingExtra="4dp" android:text="@string/diagnostics_help"
+            android:textColor="@color/muted" android:textSize="14sp" />
+        <TextView android:id="@+id/diagnostics_content" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="18dp" android:fontFamily="monospace" android:lineSpacingExtra="5dp"
+            android:textColor="@color/foreground" android:textSize="14sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="20dp" android:lineSpacingExtra="4dp" android:text="@string/diagnostics_limitations"
+            android:textColor="@color/muted" android:textSize="14sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="18dp" android:text="@string/open_source_credit" android:textColor="@color/accent" android:textSize="12sp" />
+    </LinearLayout>
+</ScrollView>
