@@ -78,7 +78,7 @@
     <string name="diagnostics_android">Android: %1$s · API %2$d</string>
     <string name="diagnostics_abi">Архитектура: %1$s</string>
     <string name="diagnostics_failed">Не удалось получить сведения: %1$s</string>
-    <string name="diagnostics_limitations">Для видео используйте «Повтор экрана» в Пункте управления. Кнопка AirPlay внутри приложения может включить другой режим. Защищённое видео некоторых сервисов не передаётся.</string>
+    <string name="diagnostics_limitations">«Повтор экрана» работает отдельно. HLS-видео через кнопку AirPlay экспериментально поддерживается для YouTube; Safari и другие приложения пока не проверены. Защищённое видео не передаётся.</string>
     <string name="diagnostics_clip_label">Диагностика FreeCast TV</string>
     <string name="diagnostics_copied">Диагностика скопирована</string>
     <string name="open_source_credit">FreeCast TV · На основе AirTV и UxPlay · GPLv3</string>

@@ -42,6 +42,9 @@ interface AirPlayCallbacks {
 
     /** AirPlay volume in dB: -30 (quietest) to 0 (loudest), -144 means muted. */
     fun onVolume(decibels: Float)
+
+    fun onHlsPlay(localUrl: String, startPositionSeconds: Float)
+    fun onHlsStop()
 }
 
 /** Thin wrapper over the native AirPlay server. */

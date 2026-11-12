@@ -51,6 +51,8 @@ static struct {
     jmethodID onAudioData;
     jmethodID onAudioFlush;
     jmethodID onVolume;
+    jmethodID onHlsPlay;
+    jmethodID onHlsStop;
 } M;
 
 static void detach_current_thread(void *value) {
@@ -285,12 +287,19 @@ static void cb_report_client_request(void *cls, char *deviceid, char *model, cha
 /* HLS / AirPlay-video callbacks: some call sites are not NULL-guarded, so provide
  * no-op stubs even though the advertised features disable that path. */
 static void cb_on_video_play(void *cls, const char *location, const float start_position) {
-    (void) cls; (void) start_position;
-    LOGI("on_video_play (unsupported): %s", location ? location : "");
+    (void) cls;
+    if (!location || strncmp(location, "http://localhost:", 17) != 0) return;
+    JNIEnv *env = get_env();
+    if (!env || !g_cb) return;
+    jstring url = (*env)->NewStringUTF(env, location);
+    if (!url) return;
+    (*env)->CallVoidMethod(env, g_cb, M.onHlsPlay, url, (jfloat) start_position);
+    clear_exception(env);
+    (*env)->DeleteLocalRef(env, url);
 }
 static void cb_on_video_scrub(void *cls, const float position) { (void) cls; (void) position; }
 static void cb_on_video_rate(void *cls, const float rate) { (void) cls; (void) rate; }
-static void cb_on_video_stop(void *cls) { (void) cls; call_void(M.onVideoStop); }
+static void cb_on_video_stop(void *cls) { (void) cls; call_void(M.onHlsStop); }
 static void cb_on_video_acquire_playback_info(void *cls, playback_info_t *info) {
     (void) cls;
     if (info) memset(info, 0, sizeof(*info));
@@ -325,14 +334,16 @@ static int cache_methods(JNIEnv *env, jobject cb) {
     GET(onAudioData, "onAudioData", "(Ljava/nio/ByteBuffer;IJ)V")
     GET(onAudioFlush, "onAudioFlush", "()V")
     GET(onVolume, "onVolume", "(F)V")
+    GET(onHlsPlay, "onHlsPlay", "(Ljava/lang/String;F)V")
+    GET(onHlsStop, "onHlsStop", "()V")
 #undef GET
     (*env)->DeleteLocalRef(env, c);
     return 0;
 }
 
 static void set_airplay_features(dnssd_t *dnssd) {
-    /* Mirroring + audio receiver with FairPlay auth; AirPlay-video/HLS is off. */
-    static const int bits_on[] = {1, 2, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15,
+    /* Video and HLS are advertised only when the TV-side player is present. */
+    static const int bits_on[] = {0, 1, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15,
                                   16, 17, 18, 19, 20, 21, 22, 25, 27, 28, 30};
     for (int i = 0; i < 64; i++) {
         dnssd_set_airplay_features(dnssd, i, 0);
@@ -460,6 +471,7 @@ Java_com_airtv_receiver_airplay_NativeAirPlay_nativeStart(
     raop_set_plist(g_raop, "refreshRate", fps);
     raop_set_plist(g_raop, "maxFPS", fps);
     raop_set_plist(g_raop, "overscanned", 0);
+    raop_set_plist(g_raop, "hls", 1);
 
     unsigned short tcp[3] = {0, 0, 0};
     unsigned short udp[3] = {0, 0, 0};

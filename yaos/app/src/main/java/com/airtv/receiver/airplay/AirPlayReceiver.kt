@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.Surface
 import com.airtv.receiver.BuildConfig
 import com.airtv.receiver.media.AudioPipeline
+import com.airtv.receiver.media.HlsPipeline
 import com.airtv.receiver.media.VideoPipeline
 import com.airtv.receiver.settings.ReceiverPreferences
 import com.airtv.receiver.settings.ReceiverSettings
@@ -36,6 +37,7 @@ sealed class ReceiverState {
 class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
     private val video = VideoPipeline()
     private val audio = AudioPipeline()
+    private val hls = HlsPipeline()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val listeners = CopyOnWriteArrayList<(ReceiverState) -> Unit>()
     private val receivedVideo = AtomicLong(0)
@@ -52,6 +54,8 @@ class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
     @Volatile private var videoCodecName = "—"
     @Volatile private var audioCodecName = "—"
     @Volatile private var lastError = "—"
+    @Volatile private var hlsPlaying = false
+    @Volatile private var outputSurface: Surface? = null
 
     val receiverName: String get() = settings.name
     val advertisedDisplay: AdvertisedDisplay get() = settings.display()
@@ -76,6 +80,21 @@ class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
                 publish(ReceiverState.AudioOnly(clientName, audioCodecName, false))
             }
         }
+        hls.onVideoSize = { width, height ->
+            sourceWidth = width
+            sourceHeight = height
+            if (running && hlsPlaying && state is ReceiverState.Streaming)
+                publish(ReceiverState.Streaming(clientName.ifBlank { "iPhone" }, width, height))
+        }
+        hls.onFirstFrame = {
+            if (running && hlsPlaying) publish(ReceiverState.Streaming(clientName.ifBlank { "iPhone" },
+                sourceWidth.takeIf { it > 0 } ?: advertisedDisplay.width,
+                sourceHeight.takeIf { it > 0 } ?: advertisedDisplay.height))
+        }
+        hls.onError = { message ->
+            lastError = message
+            if (running && hlsPlaying) publish(ReceiverState.Failed(message))
+        }
     }
 
     fun addListener(listener: (ReceiverState) -> Unit) {
@@ -83,7 +102,11 @@ class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
         mainHandler.post { if (listeners.contains(listener)) listener(state) }
     }
     fun removeListener(listener: (ReceiverState) -> Unit) { listeners -= listener }
-    fun setSurface(surface: Surface?) { video.setSurface(surface) }
+    fun setSurface(surface: Surface?) {
+        outputSurface = surface
+        video.setSurface(if (hlsPlaying) null else surface)
+        hls.setSurface(surface)
+    }
 
     /** Called from the service's serial worker, never a native callback thread. */
     fun start(): Boolean {
@@ -133,6 +156,8 @@ class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
             .onFailure { Log.w(TAG, "native stop failed", it) }
         video.stop()
         audio.stop()
+        hls.stop()
+        hlsPlaying = false
         receivedVideo.set(0)
         sourceWidth = 0
         sourceHeight = 0
@@ -157,6 +182,8 @@ class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
     }
 
     override fun onSessionEnd() {
+        hls.stop()
+        hlsPlaying = false
         video.stop()
         audio.stop()
         receivedVideo.set(0)
@@ -168,6 +195,7 @@ class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
     }
 
     override fun onVideoCodec(isH265: Boolean): Int {
+        if (hlsPlaying) onHlsStop()
         videoCodecName = if (isH265) "H.265 / HEVC" else "H.264 / AVC"
         video.setCodec(isH265)
         return 0
@@ -203,6 +231,26 @@ class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
     }
     override fun onAudioFlush() { audio.flush() }
     override fun onVolume(decibels: Float) { audio.setVolumeDecibels(decibels) }
+
+    override fun onHlsPlay(localUrl: String, startPositionSeconds: Float) {
+        if (!running) return
+        hlsPlaying = true
+        video.setSurface(null)
+        video.stop()
+        audio.stop()
+        sourceWidth = 0
+        sourceHeight = 0
+        videoCodecName = "HLS"
+        hls.play(localUrl, startPositionSeconds)
+        publish(ReceiverState.Connecting(clientName.ifBlank { "iPhone" }))
+    }
+
+    override fun onHlsStop() {
+        hls.stop()
+        hlsPlaying = false
+        video.setSurface(outputSurface)
+        if (running) publishAdvertising()
+    }
 
     /** Local text only: no upload, tracking service, registration or remote diagnostics. */
     fun diagnostics(): String {
