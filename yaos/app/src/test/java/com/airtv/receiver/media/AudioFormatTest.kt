@@ -1,7 +1,6 @@
 package com.airtv.receiver.media
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -25,10 +24,10 @@ class AudioFormatTest {
     }
 
     @Test
-    fun `aac formats are playable and alac is not`() {
+    fun `aac and alac formats are playable`() {
         assertTrue(AudioPipeline.Format.AAC_ELD.supported)
         assertTrue(AudioPipeline.Format.AAC_LC.supported)
-        assertFalse("Android has no guaranteed ALAC decoder", AudioPipeline.Format.ALAC.supported)
+        assertTrue(AudioPipeline.Format.ALAC.supported)
     }
 
     @Test
