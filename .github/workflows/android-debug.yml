@@ -36,6 +36,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: FreeCast-TV-debug-${{ github.run_number }}
-          path: yaos/app/build/outputs/apk/debug/app-debug.apk
+          path: yaos/app/build/outputs/apk/debug/FreeCast-TV-*.apk
           if-no-files-found: error
           retention-days: 14

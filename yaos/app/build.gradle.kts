@@ -31,6 +31,13 @@ android {
         }
     }
 
+    applicationVariants.all {
+        outputs.all {
+            (this as com.android.build.gradle.api.ApkVariantOutput).outputFileName =
+                "FreeCast-TV-${appVersionName}.apk"
+        }
+    }
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
