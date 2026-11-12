@@ -10,6 +10,10 @@
         android:layout_height="wrap_content" android:layout_marginTop="8dp"
         android:text="Загружаем трансляции…" android:textColor="@color/muted"
         android:textSize="15sp" />
+    <TextView android:id="@+id/ace_status" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_marginTop="6dp"
+        android:text="Проверяем Ace Stream на телевизоре…" android:textColor="@color/muted"
+        android:textSize="14sp" />
     <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1" android:layout_marginTop="20dp">
         <LinearLayout android:id="@+id/broadcasts_tiles" android:layout_width="match_parent"
