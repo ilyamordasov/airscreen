@@ -118,7 +118,7 @@
 ./gradlew testDebugUnitTest assembleDebug
 ```
 
-Тестовый APK: `app/build/outputs/apk/debug/app-debug.apk`.
+Тестовый APK: `app/build/outputs/apk/debug/FreeCast-TV-0.1.0.apk`.
 Для подписанной версии:
 
 ```bash

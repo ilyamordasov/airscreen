@@ -284,11 +284,12 @@ static void cb_report_client_request(void *cls, char *deviceid, char *model, cha
     if (admit) *admit = (ok == JNI_TRUE);
 }
 
-/* HLS / AirPlay-video callbacks: some call sites are not NULL-guarded, so provide
- * no-op stubs even though the advertised features disable that path. */
+/* HLS / AirPlay-video callbacks. Accept the local FCUP proxy and direct media
+ * URLs supplied by the AirPlay sender. */
 static void cb_on_video_play(void *cls, const char *location, const float start_position) {
     (void) cls;
-    if (!location || strncmp(location, "http://localhost:", 17) != 0) return;
+    if (!location || (strncmp(location, "http://", 7) != 0 &&
+                      strncmp(location, "https://", 8) != 0)) return;
     JNIEnv *env = get_env();
     if (!env || !g_cb) return;
     jstring url = (*env)->NewStringUTF(env, location);
