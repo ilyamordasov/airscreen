@@ -107,12 +107,21 @@ class UpdateActivity : Activity() {
                     status.text = when {
                         found == null -> getString(R.string.update_no_release)
                         release == null -> getString(R.string.update_current, BuildConfig.VERSION_NAME)
+                        BuildConfig.DEBUG -> getString(R.string.update_debug_migration, found.version.toString())
                         else -> getString(R.string.update_available, found.version.toString())
                     }
-                    action.text = getString(if (release == null) R.string.action_refresh else R.string.update_download)
+                    action.text = getString(when {
+                        release == null -> R.string.action_refresh
+                        BuildConfig.DEBUG -> R.string.update_open_release
+                        else -> R.string.update_download
+                    })
                     action.isEnabled = true
                     action.setOnClickListener {
-                        if (release == null) checkLatest() else downloadAndInstall()
+                        when {
+                            release == null -> checkLatest()
+                            BuildConfig.DEBUG -> openReleasePage(release!!)
+                            else -> downloadAndInstall()
+                        }
                     }
                 }.onFailure { showError(it) }
             }
@@ -164,6 +173,15 @@ class UpdateActivity : Activity() {
                 }.onFailure { showError(it) }
             }
         }.start()
+    }
+
+    private fun openReleasePage(selected: ReleaseInfo) {
+        val url = "https://github.com/ilyamordasov/airscreen/releases/tag/v${selected.version}"
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: ActivityNotFoundException) {
+            status.setText(R.string.update_browser_missing)
+        }
     }
 
     private fun requestInstall(file: File) {

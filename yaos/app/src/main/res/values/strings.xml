@@ -57,6 +57,9 @@
     <string name="update_no_release">Опубликованных версий пока нет.</string>
     <string name="update_current">Установлена последняя версия: %1$s</string>
     <string name="update_available">Доступна версия %1$s</string>
+    <string name="update_debug_migration">Доступна версия %1$s. Текущая тестовая сборка подписана другим ключом. Один раз удалите её и установите релиз; затем обновления пойдут прямо из приложения.</string>
+    <string name="update_open_release">Открыть страницу релиза</string>
+    <string name="update_browser_missing">На телевизоре не найден браузер. Откройте GitHub Releases другим способом.</string>
     <string name="update_download">Скачать и установить</string>
     <string name="update_downloading">Скачиваем и проверяем APK…</string>
     <string name="update_ready">APK проверен. Подтвердите установку на следующем экране.</string>
