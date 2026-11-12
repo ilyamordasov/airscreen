@@ -49,6 +49,7 @@
     <string name="action_retry">Повторить запуск</string>
     <string name="action_settings">Настройки</string>
     <string name="action_diagnostics">Диагностика</string>
+    <string name="action_broadcasts">Трансляции</string>
     <string name="action_resume">К трансляции</string>
     <string name="action_exit">Выйти</string>
     <string name="action_continue">Продолжить</string>

@@ -56,6 +56,7 @@ class MainActivity : Activity() {
     private lateinit var toggleButton: Button
     private lateinit var settingsButton: Button
     private lateinit var diagnosticsButton: Button
+    private lateinit var broadcastsButton: Button
     private lateinit var resumeButton: Button
     private lateinit var playbackHint: View
 
@@ -132,18 +133,20 @@ class MainActivity : Activity() {
         toggleButton = findViewById(R.id.toggle_receiver)
         settingsButton = findViewById(R.id.settings_button)
         diagnosticsButton = findViewById(R.id.diagnostics_button)
+        broadcastsButton = findViewById(R.id.broadcasts_button)
         resumeButton = findViewById(R.id.resume_button)
         playbackHint = findViewById(R.id.playback_hint)
 
         toggleButton.setOnClickListener { toggleReceiver() }
         settingsButton.setOnClickListener { showSettings() }
         diagnosticsButton.setOnClickListener { showDiagnostics() }
+        broadcastsButton.setOnClickListener { startActivity(Intent(this, BroadcastsActivity::class.java)) }
         resumeButton.setOnClickListener { hideControls() }
         findViewById<View>(R.id.exit_button).apply {
             setOnClickListener { requestExit() }
             nextFocusDownId = R.id.settings_button
         }
-        listOf(toggleButton, settingsButton, diagnosticsButton, resumeButton).forEach {
+        listOf(toggleButton, settingsButton, diagnosticsButton, broadcastsButton, resumeButton).forEach {
             it.nextFocusUpId = R.id.exit_button
         }
 
@@ -337,7 +340,7 @@ class MainActivity : Activity() {
         val wasVisible = overlay.visibility == View.VISIBLE
         overlay.visibility = if (showDashboard) View.VISIBLE else View.GONE
         resumeButton.visibility = if (streaming) View.VISIBLE else View.GONE
-        diagnosticsButton.nextFocusRightId = if (streaming) R.id.resume_button else R.id.exit_button
+        broadcastsButton.nextFocusRightId = if (streaming) R.id.resume_button else R.id.exit_button
         if (showDashboard) {
             playbackHint.visibility = View.GONE
             if (!wasVisible) {

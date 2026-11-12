@@ -42,6 +42,11 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".ui.BroadcastsActivity" android:exported="false"
+            android:screenOrientation="landscape" />
+        <activity android:name=".ui.BroadcastWebActivity" android:exported="false"
+            android:screenOrientation="landscape" />
+
         <service
             android:name=".service.AirPlayService"
             android:exported="false"
