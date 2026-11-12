@@ -37,8 +37,8 @@ class BroadcastsActivity : Activity() {
     private fun load() {
         val generation = ++loadGeneration
         tiles.removeAllViews()
-        addTile("Матч ТВ — прямой эфир", "https://matchtv.ru/video/channel/matchtv")
-        addTile("Матч Премьер", "https://matchtv.ru/video/channel/premier")
+        addTile("Матч ТВ — бесплатный прямой эфир", "https://matchtv.ru/video/channel/matchtv")
+        addTile("Матч Премьер — по подписке (приложение МАТЧ!)", "https://matchtv.ru/match-app")
         addTile("Все трансляции Спартака", CATALOG_URL)
         status.text = "Обновляем список матчей…"
         aceStatus.text = "Ищем P2P-эфиры через Ace Stream Engine…"
