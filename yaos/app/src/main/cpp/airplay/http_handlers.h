@@ -873,7 +873,7 @@ http_handler_play(raop_conn_t *conn, http_request_t *request, http_response_t *r
 
     plist_t req_client_proc_name_node = plist_dict_get_item(req_root_node, "clientProcName");
     if (!req_client_proc_name_node) {
-        goto play_error;
+        logger_log(raop->logger, LOGGER_INFO, "Play request has no clientProcName");
     } else {
         plist_get_string_val(req_client_proc_name_node, &client_proc_name);
         if (!strstr(supported_hls_proc_names, client_proc_name)){
@@ -893,11 +893,20 @@ http_handler_play(raop_conn_t *conn, http_request_t *request, http_response_t *r
     }
     set_start_position_seconds(airplay_video, (float) start_position_seconds);
 
-    /* we only support HLS if the playback location is terminated by "/master.m3u8" */
+    /* Some senders (including browser players) send a directly playable media URL
+       instead of YouTube's FCUP /master.m3u8 proxy. The TV fetches it itself. */
     const char *uri_suffix = strstr(playback_location, "/master.m3u8");
     if (!uri_suffix) { 
-        logger_log(raop->logger, LOGGER_ERR, "Content-Location has unsupported form:\n%s\n", playback_location);	    
-        goto play_error;
+        if (strncmp(playback_location, "https://", 8) &&
+            strncmp(playback_location, "http://", 7)) {
+            logger_log(raop->logger, LOGGER_ERR, "Content-Location has unsupported form: %s", playback_location);
+            goto play_error;
+        }
+        set_playback_location(airplay_video, playback_location, strlen(playback_location));
+        raop->callbacks.on_video_play(raop->callbacks.cls, playback_location, start_position_seconds);
+        plist_mem_free(playback_location);
+        plist_free(req_root_node);
+        return;
     } else {
         size_t len = strlen(get_uri_local_prefix(airplay_video)) + strlen(uri_suffix);
         char *location = (char *) calloc(len + 1, sizeof(char));

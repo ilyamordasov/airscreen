@@ -18,8 +18,7 @@ class AudioPipeline {
 
     /** AirPlay "ct" content types. */
     enum class Format(val contentType: Int, val displayName: String, val supported: Boolean) {
-        /** Audio-only AirPlay; Android has no guaranteed ALAC decoder. */
-        ALAC(2, "ALAC (Apple Lossless)", supported = false),
+        ALAC(2, "ALAC (Apple Lossless)", supported = true),
         AAC_LC(4, "AAC-LC", supported = true),
 
         /** What screen mirroring always uses. */
@@ -50,6 +49,8 @@ class AudioPipeline {
     private val lock = Any()
 
     private var codec: MediaCodec? = null
+    private var alac: AlacDecoder? = null
+    private var alacFramesPerPacket = 0
     private var track: AudioTrack? = null
     private var format: Format? = null
     private var scratch = ByteArray(16 * 1024)
@@ -67,10 +68,10 @@ class AudioPipeline {
     var framesPlayed = 0L
         private set
 
-    val isRunning: Boolean get() = synchronized(lock) { codec != null }
+    val isRunning: Boolean get() = synchronized(lock) { codec != null || alac != null }
 
     /** Called when the sender announces the audio format for a new stream. */
-    fun setFormat(contentType: Int) {
+    fun setFormat(contentType: Int, framesPerPacket: Int = 352) {
         synchronized(lock) {
             val requested = Format.of(contentType)
             if (requested == null) {
@@ -79,12 +80,26 @@ class AudioPipeline {
                 return
             }
             if (requested == Format.ALAC) {
-                // Only reached for audio-only AirPlay from senders that pick ALAC;
-                // Android has no guaranteed ALAC decoder, so we stay silent instead of
-                // feeding a decoder that will error out on every frame.
-                Log.w(TAG, "ALAC audio is not supported on Android; audio disabled")
+                val packetFrames = if (framesPerPacket == 0) 352 else framesPerPacket
+                if (alac != null && alacFramesPerPacket == packetFrames) return
                 stopLocked()
                 format = requested
+                if (packetFrames !in 1..8192) {
+                    onError?.invoke("Некорректная длина кадра ALAC: $framesPerPacket")
+                    return
+                }
+                try {
+                    val decoder = AlacDecoder(packetFrames)
+                    val output = buildAudioTrack()
+                    output.play()
+                    output.setVolume(gain)
+                    alac = decoder
+                    track = output
+                    alacFramesPerPacket = packetFrames
+                } catch (e: Exception) {
+                    stopLocked()
+                    onError?.invoke("Не удалось открыть ALAC: ${e.localizedMessage.orEmpty()}")
+                }
                 return
             }
             if (format == requested && codec != null) return
@@ -101,6 +116,18 @@ class AudioPipeline {
             return
         }
         synchronized(lock) {
+            val activeAlac = alac
+            if (activeAlac != null) {
+                if (scratch.size < length) scratch = ByteArray(length)
+                data.position(0)
+                data.get(scratch, 0, length)
+                val decoded = activeAlac.decode(scratch, length)
+                if (decoded > 0) {
+                    track?.write(activeAlac.output, 0, decoded)
+                    framesPlayed++
+                }
+                return
+            }
             val activeCodec = codec ?: return
             if (scratch.size < length) scratch = ByteArray(length)
             data.position(0)
@@ -128,6 +155,10 @@ class AudioPipeline {
             // Retire the drain before resetting buffers: a concurrent codec.flush()
             // can invalidate an output index and leave a live codec with no drain.
             val target = format ?: return
+            if (target == Format.ALAC) {
+                track?.flush()
+                return
+            }
             if (codec == null) return
             stopLocked()
             startLocked(target)
@@ -252,6 +283,9 @@ class AudioPipeline {
     }
 
     private fun stopLocked() {
+        alac?.close()
+        alac = null
+        alacFramesPerPacket = 0
         draining = false
         generation++
         drainThread?.let {

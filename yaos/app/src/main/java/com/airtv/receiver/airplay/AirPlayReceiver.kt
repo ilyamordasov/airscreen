@@ -219,9 +219,9 @@ class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
     override fun onVideoResume() = Unit
     override fun onVideoStop() { onSessionEnd() }
 
-    override fun onAudioFormat(contentType: Int, usingScreen: Boolean, isMedia: Boolean) {
+    override fun onAudioFormat(contentType: Int, framesPerPacket: Int, usingScreen: Boolean, isMedia: Boolean) {
         audioCodecName = AudioPipeline.describeContentType(contentType)
-        audio.setFormat(contentType)
+        audio.setFormat(contentType, framesPerPacket)
         if (running && !usingScreen) {
             publish(ReceiverState.AudioOnly(clientName, audioCodecName, audio.isRunning))
         }
@@ -283,7 +283,7 @@ class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
             $decoders
 
             AirPlay: UxPlay / AirTV, GPLv3.
-            Кино с защитой DRM и отдельная передача ALAC не поддерживаются.
+            Кино с защитой DRM не поддерживается.
         """.trimIndent()
     }
 

@@ -35,7 +35,7 @@ interface AirPlayCallbacks {
      * @param usingScreen true for a screen-mirroring session, false for audio-only AirPlay
      * (where the sender keeps the video on its own display).
      */
-    fun onAudioFormat(contentType: Int, usingScreen: Boolean, isMedia: Boolean)
+    fun onAudioFormat(contentType: Int, framesPerPacket: Int, usingScreen: Boolean, isMedia: Boolean)
 
     fun onAudioData(data: ByteBuffer, length: Int, presentationTimeUs: Long)
     fun onAudioFlush()

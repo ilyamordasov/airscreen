@@ -1,7 +1,23 @@
 cmake_minimum_required(VERSION 3.18)
-project(airplayjni C)
+project(airplayjni C CXX)
 
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+
+set(ALAC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/alac)
+add_library(alac_dec STATIC
+        ${ALAC_DIR}/ALACDecoder.cpp
+        ${ALAC_DIR}/ALACBitUtilities.c
+        ${ALAC_DIR}/EndianPortable.c
+        ${ALAC_DIR}/ag_dec.c
+        ${ALAC_DIR}/dp_dec.c
+        ${ALAC_DIR}/matrix_dec.c)
+target_include_directories(alac_dec PUBLIC ${ALAC_DIR})
+target_compile_definitions(alac_dec PRIVATE TARGET_OS_GENERIC=1 TARGET_RT_LITTLE_ENDIAN=1)
+set_target_properties(alac_dec PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+add_library(alacjni SHARED alac_decoder_jni.cpp)
+target_link_libraries(alacjni alac_dec)
 
 set(PREBUILT ${CMAKE_CURRENT_SOURCE_DIR}/prebuilt/${ANDROID_ABI})
 if(NOT EXISTS ${PREBUILT}/lib/libcrypto.a)

@@ -25,8 +25,9 @@ class HlsPipeline {
 
     fun play(localUrl: String, startPositionSeconds: Float) {
         main.post {
-            // The proxy is owned by this app. Never pass an arbitrary network URL to it.
-            if (!localUrl.startsWith("http://localhost:") || !localUrl.endsWith(".m3u8")) {
+            // Local FCUP proxy or a direct media URL supplied by the AirPlay sender.
+            val uri = android.net.Uri.parse(localUrl)
+            if (uri.scheme !in setOf("http", "https") || uri.host.isNullOrBlank()) {
                 onError?.invoke("Некорректный адрес видеопотока AirPlay.")
                 return@post
             }

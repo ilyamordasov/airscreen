@@ -228,12 +228,12 @@ static void cb_video_resume(void *cls) { (void) cls; call_void(M.onVideoResume);
 static void cb_audio_get_format(void *cls, unsigned char *ct, unsigned short *spf,
                                 bool *usingScreen, bool *isMedia, uint64_t *audioFormat) {
     (void) cls;
-    (void) spf;
     (void) audioFormat;
     JNIEnv *env = get_env();
     if (!env || !g_cb) return;
     /* usingScreen distinguishes a mirroring session from audio-only AirPlay. */
     (*env)->CallVoidMethod(env, g_cb, M.onAudioFormat, (jint) (ct ? *ct : 0),
+                           (jint) (spf ? *spf : 0),
                            (jboolean) (usingScreen && *usingScreen),
                            (jboolean) (isMedia && *isMedia));
     clear_exception(env);
@@ -330,7 +330,7 @@ static int cache_methods(JNIEnv *env, jobject cb) {
     GET(onVideoPause, "onVideoPause", "()V")
     GET(onVideoResume, "onVideoResume", "()V")
     GET(onVideoStop, "onVideoStop", "()V")
-    GET(onAudioFormat, "onAudioFormat", "(IZZ)V")
+    GET(onAudioFormat, "onAudioFormat", "(IIZZ)V")
     GET(onAudioData, "onAudioData", "(Ljava/nio/ByteBuffer;IJ)V")
     GET(onAudioFlush, "onAudioFlush", "()V")
     GET(onVolume, "onVolume", "(F)V")

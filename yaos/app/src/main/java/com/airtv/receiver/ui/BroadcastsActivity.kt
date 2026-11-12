@@ -190,13 +190,8 @@ class BroadcastsActivity : Activity() {
 
     private fun launchAceContentId(contentId: String) {
         if (!contentId.matches(Regex("[a-fA-F0-9]{40}"))) return
-        try {
-            startActivity(Intent("org.acestream.action.start_content",
-                Uri.parse("acestream:?content_id=$contentId"))
-                .putExtra("org.acestream.EXTRA_SELECTED_PLAYER", "{\"type\": 3}"))
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "Установите Ace Stream на телевизор.", Toast.LENGTH_LONG).show()
-        }
+        startActivity(Intent(this, AcePlaybackActivity::class.java)
+            .putExtra(AcePlaybackActivity.EXTRA_CONTENT_ID, contentId.lowercase()))
     }
 
     private fun extractMatchLinks(html: String): List<Pair<String, String>> {
