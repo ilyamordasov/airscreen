@@ -30,11 +30,14 @@ import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import com.airtv.receiver.R
+import com.airtv.receiver.BuildConfig
 import com.airtv.receiver.airplay.AirPlayReceiver
 import com.airtv.receiver.airplay.ReceiverState
 import com.airtv.receiver.service.AirPlayService
 import com.airtv.receiver.settings.ReceiverPreferences
 import com.airtv.receiver.settings.ReceiverSettings
+import com.airtv.receiver.update.ReleaseClient
+import com.airtv.receiver.update.ReleaseVersion
 import kotlin.math.min
 
 /**
@@ -57,6 +60,7 @@ class MainActivity : Activity() {
     private lateinit var settingsButton: Button
     private lateinit var diagnosticsButton: Button
     private lateinit var broadcastsButton: Button
+    private lateinit var updateButton: Button
     private lateinit var resumeButton: Button
     private lateinit var playbackHint: View
 
@@ -134,6 +138,7 @@ class MainActivity : Activity() {
         settingsButton = findViewById(R.id.settings_button)
         diagnosticsButton = findViewById(R.id.diagnostics_button)
         broadcastsButton = findViewById(R.id.broadcasts_button)
+        updateButton = findViewById(R.id.update_button)
         resumeButton = findViewById(R.id.resume_button)
         playbackHint = findViewById(R.id.playback_hint)
 
@@ -141,14 +146,16 @@ class MainActivity : Activity() {
         settingsButton.setOnClickListener { showSettings() }
         diagnosticsButton.setOnClickListener { showDiagnostics() }
         broadcastsButton.setOnClickListener { startActivity(Intent(this, BroadcastsActivity::class.java)) }
+        updateButton.setOnClickListener { startActivity(Intent(this, UpdateActivity::class.java)) }
         resumeButton.setOnClickListener { hideControls() }
         findViewById<View>(R.id.exit_button).apply {
             setOnClickListener { requestExit() }
             nextFocusDownId = R.id.settings_button
         }
-        listOf(toggleButton, settingsButton, diagnosticsButton, broadcastsButton, resumeButton).forEach {
+        listOf(toggleButton, settingsButton, diagnosticsButton, broadcastsButton, updateButton, resumeButton).forEach {
             it.nextFocusUpId = R.id.exit_button
         }
+        checkForUpdates()
 
         surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
@@ -320,6 +327,20 @@ class MainActivity : Activity() {
         updateDiagnostics()
     }
 
+    private fun checkForUpdates() {
+        Thread {
+            val latest = runCatching { ReleaseClient().latest() }.getOrNull()
+            val current = ReleaseVersion.parse(BuildConfig.VERSION_NAME)
+            if (latest != null && (current == null || latest.version > current)) {
+                runOnUiThread {
+                    if (!isFinishing && !isDestroyed) {
+                        updateButton.text = getString(R.string.update_badge, latest.version.toString())
+                    }
+                }
+            }
+        }.start()
+    }
+
     private fun updateReceiverInfo() {
         val config = receiver?.settings ?: ReceiverPreferences.load(this)
         val name = when (val state = currentState) {
@@ -340,7 +361,7 @@ class MainActivity : Activity() {
         val wasVisible = overlay.visibility == View.VISIBLE
         overlay.visibility = if (showDashboard) View.VISIBLE else View.GONE
         resumeButton.visibility = if (streaming) View.VISIBLE else View.GONE
-        broadcastsButton.nextFocusRightId = if (streaming) R.id.resume_button else R.id.exit_button
+        updateButton.nextFocusRightId = if (streaming) R.id.resume_button else R.id.exit_button
         if (showDashboard) {
             playbackHint.visibility = View.GONE
             if (!wasVisible) {
