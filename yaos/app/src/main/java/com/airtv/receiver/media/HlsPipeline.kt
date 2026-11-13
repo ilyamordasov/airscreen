@@ -1,14 +1,22 @@
 package com.airtv.receiver.media
 
-import android.media.MediaPlayer
+import android.content.Context
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.Surface
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
+import androidx.media3.datasource.HttpDataSource
+import androidx.media3.exoplayer.ExoPlayer
 
-/** Plays the native AirPlay HLS proxy URL on the TV, independent of screen mirroring. */
-class HlsPipeline {
+/** Plays AirPlay video on the TV, independently of the screen mirror decoder. */
+class HlsPipeline(private val context: Context) {
     private val main = Handler(Looper.getMainLooper())
-    private var player: MediaPlayer? = null
+    private var player: ExoPlayer? = null
     private var surface: Surface? = null
     private var generation = 0
 
@@ -19,14 +27,13 @@ class HlsPipeline {
     fun setSurface(value: Surface?) {
         main.post {
             surface = value
-            player?.setSurface(value)
+            player?.setVideoSurface(value)
         }
     }
 
     fun play(localUrl: String, startPositionSeconds: Float) {
         main.post {
-            // Local FCUP proxy or a direct media URL supplied by the AirPlay sender.
-            val uri = android.net.Uri.parse(localUrl)
+            val uri = Uri.parse(localUrl)
             if (uri.scheme !in setOf("http", "https") || uri.host.isNullOrBlank()) {
                 onError?.invoke("Некорректный адрес видеопотока AirPlay.")
                 return@post
@@ -34,29 +41,35 @@ class HlsPipeline {
             stopOnMain()
             val token = generation
             try {
-                val next = MediaPlayer()
+                val next = ExoPlayer.Builder(context).build()
                 player = next
-                next.setSurface(surface)
-                next.setOnVideoSizeChangedListener { _, width, height ->
-                    if (token == generation && width > 0 && height > 0) onVideoSize?.invoke(width, height)
-                }
-                next.setOnInfoListener { _, what, _ ->
-                    if (token == generation && what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) onFirstFrame?.invoke()
-                    false
-                }
-                next.setOnPreparedListener {
-                    if (token != generation) return@setOnPreparedListener
-                    if (startPositionSeconds.isFinite() && startPositionSeconds > 0f) {
-                        next.seekTo((startPositionSeconds * 1000).toInt().coerceAtLeast(0))
+                next.setVideoSurface(surface)
+                next.addListener(object : Player.Listener {
+                    override fun onVideoSizeChanged(videoSize: VideoSize) {
+                        if (token == generation && videoSize.width > 0 && videoSize.height > 0) {
+                            onVideoSize?.invoke(videoSize.width, videoSize.height)
+                        }
                     }
-                    next.start()
+
+                    override fun onRenderedFirstFrame() {
+                        if (token == generation) onFirstFrame?.invoke()
+                    }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        if (token == generation) onError?.invoke(describeError(error))
+                    }
+                })
+                val item = MediaItem.Builder().setUri(uri).apply {
+                    if (uri.path?.endsWith(".m3u8", ignoreCase = true) == true) {
+                        setMimeType(MimeTypes.APPLICATION_M3U8)
+                    }
+                }.build()
+                next.setMediaItem(item)
+                if (startPositionSeconds.isFinite() && startPositionSeconds > 0f) {
+                    next.seekTo((startPositionSeconds * 1000).toLong().coerceAtLeast(0))
                 }
-                next.setOnErrorListener { _, what, extra ->
-                    if (token == generation) onError?.invoke("Не удалось воспроизвести AirPlay-видео ($what/$extra).")
-                    true
-                }
-                next.setDataSource(localUrl)
-                next.prepareAsync()
+                next.playWhenReady = true
+                next.prepare()
             } catch (error: Exception) {
                 stopOnMain()
                 onError?.invoke("Не удалось открыть AirPlay-видео: ${error.localizedMessage.orEmpty()}")
@@ -68,7 +81,19 @@ class HlsPipeline {
 
     private fun stopOnMain() {
         generation++
-        player?.let { runCatching { it.reset(); it.release() } }
+        player?.release()
         player = null
+    }
+
+    private fun describeError(error: PlaybackException): String {
+        var cause: Throwable? = error
+        repeat(5) {
+            if (cause is HttpDataSource.InvalidResponseCodeException) {
+                val response = cause as HttpDataSource.InvalidResponseCodeException
+                return "Не удалось загрузить AirPlay-видео: HTTP ${response.responseCode}."
+            }
+            cause = cause?.cause
+        }
+        return "Не удалось воспроизвести AirPlay-видео: ${error.errorCodeName}."
     }
 }

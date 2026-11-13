@@ -66,7 +66,7 @@ struct airplay_video_s {
 
 //  initialize airplay_video service.
 airplay_video_t *airplay_video_init(raop_t *raop, unsigned short http_port, const char *lang) {
-    char uri[] = "http://localhost:";
+    char uri[] = "http://127.0.0.1:";
     char port[6] = { '\0' };
     assert(raop);
 

@@ -37,7 +37,7 @@ sealed class ReceiverState {
 class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
     private val video = VideoPipeline()
     private val audio = AudioPipeline()
-    private val hls = HlsPipeline()
+    private val hls = HlsPipeline(context)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val listeners = CopyOnWriteArrayList<(ReceiverState) -> Unit>()
     private val receivedVideo = AtomicLong(0)
