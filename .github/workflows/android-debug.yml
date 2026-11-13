@@ -34,7 +34,7 @@ jobs:
       - name: Fetch pinned VLESS core
         run: bash ./fetch-libbox.sh
       - name: Test and build debug APK
-        run: ./gradlew testDebugUnitTest assembleDebug
+        run: ./gradlew testDebugUnitTest assembleDebug lintDebug
       - uses: actions/upload-artifact@v4
         with:
           name: FreeCast-TV-debug-${{ github.run_number }}

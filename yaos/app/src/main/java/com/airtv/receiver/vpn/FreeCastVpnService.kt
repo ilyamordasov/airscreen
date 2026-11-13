@@ -183,9 +183,11 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
     override fun connectSSHAgent() = -1
 
     private fun createChannel() {
-        getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel("freecast_vpn", "FreeCast VPN", NotificationManager.IMPORTANCE_LOW),
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getSystemService(NotificationManager::class.java).createNotificationChannel(
+                NotificationChannel("freecast_vpn", "FreeCast VPN", NotificationManager.IMPORTANCE_LOW),
+            )
+        }
     }
 
     private fun notification(): Notification {
