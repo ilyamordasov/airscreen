@@ -86,7 +86,9 @@ android {
         jvmTarget = "17"
     }
     packaging {
-        jniLibs.useLegacyPackaging = false
+        // libbox contains large native libraries. Compression keeps OTA updates
+        // below the 100 MiB limit in already-installed FreeCast versions.
+        jniLibs.useLegacyPackaging = true
     }
 }
 

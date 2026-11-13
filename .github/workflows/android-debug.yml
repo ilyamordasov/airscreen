@@ -35,6 +35,9 @@ jobs:
         run: bash ./fetch-libbox.sh
       - name: Test and build debug APK
         run: ./gradlew testDebugUnitTest assembleDebug lintDebug
+      - name: Measure OTA APK
+        if: success()
+        run: stat -c '%n %s bytes' app/build/outputs/apk/debug/FreeCast-TV-*.apk
       - name: Show all lint errors
         if: failure()
         run: |

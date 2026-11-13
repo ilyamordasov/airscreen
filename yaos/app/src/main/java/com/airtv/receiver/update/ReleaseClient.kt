@@ -90,6 +90,6 @@ class ReleaseClient {
     companion object {
         private const val API = "https://api.github.com/repos/ilyamordasov/airscreen"
         private const val RELEASES = "https://github.com/ilyamordasov/airscreen/releases"
-        const val MAX_APK_BYTES = 100L * 1024 * 1024
+        const val MAX_APK_BYTES = 350L * 1024 * 1024
     }
 }
