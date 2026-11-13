@@ -118,11 +118,15 @@
                 android:text="@string/action_broadcasts" />
             <Button android:id="@+id/update_button" style="@style/FreeCast.ActionButton"
                 android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:layout_marginStart="10dp"
-                android:nextFocusLeft="@id/broadcasts_button" android:nextFocusRight="@id/resume_button"
+                android:nextFocusLeft="@id/broadcasts_button" android:nextFocusRight="@id/vpn_button"
                 android:text="@string/action_updates" />
+            <Button android:id="@+id/vpn_button" style="@style/FreeCast.ActionButton"
+                android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:layout_marginStart="10dp"
+                android:nextFocusLeft="@id/update_button" android:nextFocusRight="@id/resume_button"
+                android:text="VPN" />
             <Button android:id="@+id/resume_button" style="@style/FreeCast.ActionButton"
                 android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:layout_marginStart="10dp"
-                android:nextFocusLeft="@id/update_button" android:text="@string/action_resume" android:visibility="gone" />
+                android:nextFocusLeft="@id/vpn_button" android:text="@string/action_resume" android:visibility="gone" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="12dp" android:gravity="center_vertical" android:orientation="horizontal">
