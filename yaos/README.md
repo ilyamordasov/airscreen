@@ -59,7 +59,7 @@ debug-ключами; они не подходят для обновления �
 публикуйте: он разрешает открывать ссылки на вашем телевизоре. Телевизор и iPhone
 должны быть в одной домашней сети, а FreeCast TV — запущен.
 
-Готовая команда: [скачать FreeCast-TV.shortcut](https://github.com/ilyamordasov/airscreen/releases/download/v0.2.9/FreeCast-TV.shortcut).
+Готовая команда: [скачать FreeCast-TV-Shortcut-2.shortcut](https://github.com/ilyamordasov/airscreen/releases/download/v0.2.9/FreeCast-TV-Shortcut-2.shortcut).
 Откройте файл на iPhone в приложении «Файлы», добавьте команду в «Быстрые команды»
 и введите адрес и ключ с ТВ в двух вопросах при установке. Если iPhone не показывает
 вопросы или команду в меню «Поделиться», настройте её вручную по шагам ниже.

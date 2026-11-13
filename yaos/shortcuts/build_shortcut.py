@@ -31,7 +31,6 @@ def form_field(name, value):
 
 
 TOKEN_UUID = "B7657613-254F-4382-8F14-03377E0B632A"
-URL_UUID = "7068D5C7-8DE1-46EE-99D4-8941E48A5800"
 REQUEST_UUID = "0A648C52-B4D2-468C-BCEA-7DBAD15471E5"
 
 workflow = {
@@ -62,7 +61,7 @@ workflow = {
         {
             "ActionIndex": 1,
             "Category": "Parameter",
-            "ParameterKey": "WFURLActionURL",
+            "ParameterKey": "WFURL",
             "Text": "Введите адрес с экрана FreeCast TV целиком, включая /command",
             "DefaultValue": "http://192.168.1.2:38752/command",
         },
@@ -76,17 +75,11 @@ workflow = {
             },
         },
         {
-            "WFWorkflowActionIdentifier": "is.workflow.actions.url",
-            "WFWorkflowActionParameters": {
-                "UUID": URL_UUID,
-                "WFURLActionURL": "http://192.168.1.2:38752/command",
-            },
-        },
-        {
             "WFWorkflowActionIdentifier": "is.workflow.actions.downloadurl",
             "WFWorkflowActionParameters": {
                 "UUID": REQUEST_UUID,
                 "Advanced": True,
+                "WFURL": "http://192.168.1.2:38752/command",
                 "WFHTTPMethod": "POST",
                 "WFHTTPBodyType": "Form",
                 "WFFormValues": {
