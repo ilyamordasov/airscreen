@@ -10,6 +10,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 
@@ -85,6 +86,7 @@ class HlsPipeline(private val context: Context) {
         player = null
     }
 
+    @OptIn(UnstableApi::class)
     private fun describeError(error: PlaybackException): String {
         var cause: Throwable? = error
         repeat(5) {
