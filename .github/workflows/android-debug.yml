@@ -38,6 +38,21 @@ jobs:
       - name: Measure OTA APK
         if: success()
         run: stat -c '%n %s bytes' app/build/outputs/apk/debug/FreeCast-TV-*.apk
+      - name: Check release APK fits installed OTA loader
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -keystore "$RUNNER_TEMP/ota-size.jks" -storepass changeit -keypass changeit \
+            -alias ota-size -keyalg RSA -keysize 2048 -validity 1 -dname 'CN=Temporary CI size check' >/dev/null 2>&1
+          SIGNING_KEYSTORE="$RUNNER_TEMP/ota-size.jks" SIGNING_KEYSTORE_PASSWORD=changeit \
+            SIGNING_KEY_ALIAS=ota-size SIGNING_KEY_PASSWORD=changeit \
+            ./gradlew assembleRelease -PversionName=0.3.2 -PversionCode=302
+          apk=app/build/outputs/apk/release/FreeCast-TV-0.3.2.apk
+          bytes=$(stat -c '%s' "$apk")
+          echo "Release APK: $bytes bytes; old OTA limit: 104857600 bytes"
+          test "$bytes" -le 104857600
+          rm -f "$RUNNER_TEMP/ota-size.jks"
       - name: Show all lint errors
         if: failure()
         run: |

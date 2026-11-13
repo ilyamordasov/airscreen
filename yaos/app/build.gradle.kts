@@ -70,7 +70,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Release builds must use the owner's stable key, never an incidental debug key.
             signingConfig = signingConfigs.findByName("release")
         }
