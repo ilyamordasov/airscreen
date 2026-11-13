@@ -75,7 +75,14 @@ jobs:
           set -euo pipefail
           apk="app/build/outputs/apk/release/FreeCast-TV-${{ steps.version.outputs.name }}.apk"
           test -s "$apk"
-          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify "$apk"
+          actual_cert=$("$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --print-certs "$apk" |
+            sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          expected_cert=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' \
+            docs/verification/apk-signature.txt)
+          if [[ -z "$actual_cert" || "$actual_cert" != "$expected_cert" ]]; then
+            echo 'Signing certificate differs from the original FreeCast TV release' >&2
+            exit 1
+          fi
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$apk" | head -1
       - name: Publish GitHub Release
         shell: bash
