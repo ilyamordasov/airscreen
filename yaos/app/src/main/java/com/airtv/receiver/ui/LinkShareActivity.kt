@@ -12,6 +12,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.airtv.receiver.link.LinkShareServer
+import com.airtv.receiver.link.PairingSecret
+import com.airtv.receiver.link.RemoteCommandServer
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import fi.iki.elonen.NanoHTTPD
@@ -42,7 +44,7 @@ class LinkShareActivity : Activity() {
         root.addView(row, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(18) })
         val qr = ImageView(this).apply { setBackgroundColor(Color.WHITE); setPadding(dp(8), dp(8), dp(8), dp(8)) }
         row.addView(qr, LinearLayout.LayoutParams(dp(290), dp(290)))
-        val instructions = label("", 22f)
+        val instructions = label("", 18f)
         row.addView(instructions, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
             leftMargin = dp(32)
         })
@@ -73,7 +75,10 @@ class LinkShareActivity : Activity() {
             server = next
             qr.setImageBitmap(qrBitmap(url))
             status.text = "Откройте камеру iPhone и наведите её на QR-код."
-            instructions.text = "1. Скопируйте ссылку на видео в Safari.\n2. Откройте QR-код и вставьте ссылку.\n3. Введите код: $code\n\nЕсли камера не открывает QR-код: $url"
+            instructions.text = "Быстрая передача из Safari: один раз настройте команду «На FreeCast TV» в iOS Shortcuts.\n" +
+                "Адрес: http://$address:${RemoteCommandServer.PORT}/command\n" +
+                "Ключ: ${PairingSecret.get(this)}\n\n" +
+                "Без команды: скопируйте ссылку в Safari, откройте QR-код и введите код $code."
         } catch (error: Exception) {
             server?.stop()
             server = null

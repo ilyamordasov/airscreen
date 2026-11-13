@@ -53,6 +53,8 @@
             android:screenOrientation="landscape" />
         <activity android:name=".ui.BroadcastWebActivity" android:exported="false"
             android:screenOrientation="landscape" />
+        <activity android:name=".ui.StreamPlaybackActivity" android:exported="false"
+            android:screenOrientation="landscape" />
 
         <service
             android:name=".service.AirPlayService"

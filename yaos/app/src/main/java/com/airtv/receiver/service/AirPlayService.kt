@@ -14,13 +14,19 @@ import android.net.wifi.WifiManager
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.airtv.receiver.R
 import com.airtv.receiver.airplay.AirPlayReceiver
 import com.airtv.receiver.airplay.ReceiverState
+import com.airtv.receiver.link.PairingSecret
+import com.airtv.receiver.link.RemoteCommandServer
 import com.airtv.receiver.settings.ReceiverPreferences
 import com.airtv.receiver.settings.ReceiverSettings
+import com.airtv.receiver.ui.BroadcastWebActivity
 import com.airtv.receiver.ui.MainActivity
+import fi.iki.elonen.NanoHTTPD
 import java.util.concurrent.Executors
 
 /** Serializes native start/stop outside the UI thread and owns the multicast lock. */
@@ -48,6 +54,8 @@ class AirPlayService : Service() {
     @Volatile private var desiredRunning = false
     private var foreground = false
     private var connectivity: ConnectivityManager? = null
+    private var commandServer: RemoteCommandServer? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
     @Volatile private var currentNetwork: Network? = null
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
@@ -85,6 +93,19 @@ class AirPlayService : Service() {
         currentNetwork = connectivity?.activeNetwork
         runCatching { connectivity?.registerDefaultNetworkCallback(networkCallback) }
             .onFailure { Log.w(TAG, "network callback unavailable", it) }
+        runCatching {
+            RemoteCommandServer(PairingSecret.get(this), { url ->
+                mainHandler.post {
+                    if (!destroyed) startActivity(Intent(this, BroadcastWebActivity::class.java)
+                        .putExtra(BroadcastWebActivity.EXTRA_URL, url)
+                        .putExtra(BroadcastWebActivity.EXTRA_DISCOVER_MEDIA, true)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+            }).also {
+                it.start(NanoHTTPD.SOCKET_READ_TIMEOUT, true)
+                commandServer = it
+            }
+        }.onFailure { Log.e(TAG, "Shortcut receiver unavailable", it) }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -126,6 +147,8 @@ class AirPlayService : Service() {
 
     override fun onDestroy() {
         destroyed = true
+        commandServer?.stop()
+        commandServer = null
         desiredRunning = false
         receiver.removeListener(stateListener)
         runCatching { connectivity?.unregisterNetworkCallback(networkCallback) }
