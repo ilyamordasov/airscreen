@@ -57,4 +57,13 @@ AndroidX Media3 ExoPlayer/HLS 1.4.1 is Apache-2.0. ZXing core 3.5.4 is Apache-2.
 JUnit 4.13.2 and AndroidX Test are development/test dependencies and are not in the
 release APK. Dependency declarations are in app/build.gradle.kts.
 
+## sing-box / libbox
+
+The optional built-in VLESS tunnel uses sing-box `libbox` 1.14.3 (GPL-3.0-or-later).
+Upstream source: https://github.com/SagerNet/sing-box . The pinned Android AAR is
+distributed by https://github.com/singbox-android/libbox/releases/tag/1.14.3
+from the public fork https://github.com/singbox-android/sing-box . The exact AAR
+SHA-256 is recorded and verified by `fetch-libbox.sh`; the AAR is not committed to
+this repository. Its native code is included in the APK for supported TV ABIs.
+
 The Android SDK/NDK and JDK are build tools, not included in the source delivery.
