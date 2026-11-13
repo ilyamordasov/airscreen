@@ -123,6 +123,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        TvChrome.installRail(this, findViewById(R.id.nav_rail), TvChrome.Section.HOME, mainManaged = true)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         screenRoot = findViewById(R.id.screen_root)
@@ -150,14 +151,17 @@ class MainActivity : Activity() {
         broadcastsButton.setOnClickListener { startActivity(Intent(this, BroadcastsActivity::class.java)) }
         updateButton.setOnClickListener { startActivity(Intent(this, UpdateActivity::class.java)) }
         vpnButton.setOnClickListener { startActivity(Intent(this, VpnActivity::class.java)) }
+        findViewById<View>(R.id.quick_broadcasts).setOnClickListener {
+            startActivity(Intent(this, BroadcastsActivity::class.java))
+        }
+        findViewById<View>(R.id.quick_share).setOnClickListener {
+            startActivity(Intent(this, LinkShareActivity::class.java))
+        }
+        findViewById<View>(R.id.quick_vpn).setOnClickListener {
+            startActivity(Intent(this, VpnActivity::class.java))
+        }
         resumeButton.setOnClickListener { hideControls() }
-        findViewById<View>(R.id.exit_button).apply {
-            setOnClickListener { requestExit() }
-            nextFocusDownId = R.id.settings_button
-        }
-        listOf(toggleButton, settingsButton, diagnosticsButton, broadcastsButton, updateButton, vpnButton, resumeButton).forEach {
-            it.nextFocusUpId = R.id.exit_button
-        }
+        findViewById<View>(R.id.exit_button).setOnClickListener { requestExit() }
         checkForUpdates()
 
         surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
@@ -179,7 +183,26 @@ class MainActivity : Activity() {
 
         render(ReceiverState.Starting)
         startAndBind()
-        settingsButton.requestFocus()
+        toggleButton.requestFocus()
+        handlePanelIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handlePanelIntent(intent)
+    }
+
+    private fun handlePanelIntent(intent: Intent?) {
+        when (intent?.action) {
+            ACTION_OPEN_SETTINGS, ACTION_OPEN_DIAGNOSTICS -> {
+                controlsRequested = true
+                updateControls()
+                window.decorView.post {
+                    if (intent.action == ACTION_OPEN_SETTINGS) showSettings() else showDiagnostics()
+                }
+            }
+        }
     }
 
     override fun onResume() {
@@ -364,11 +387,10 @@ class MainActivity : Activity() {
         val wasVisible = overlay.visibility == View.VISIBLE
         overlay.visibility = if (showDashboard) View.VISIBLE else View.GONE
         resumeButton.visibility = if (streaming) View.VISIBLE else View.GONE
-        updateButton.nextFocusRightId = if (streaming) R.id.resume_button else R.id.exit_button
         if (showDashboard) {
             playbackHint.visibility = View.GONE
             if (!wasVisible) {
-                if (streaming) resumeButton.requestFocus() else settingsButton.requestFocus()
+                if (streaming) resumeButton.requestFocus() else toggleButton.requestFocus()
             }
         } else {
             screenRoot.requestFocus()
@@ -608,7 +630,9 @@ class MainActivity : Activity() {
         surfaceView.layoutParams = FrameLayout.LayoutParams(rect.width, rect.height, Gravity.CENTER)
     }
 
-    private companion object {
+    companion object {
+        const val ACTION_OPEN_SETTINGS = "com.airtv.receiver.OPEN_SETTINGS"
+        const val ACTION_OPEN_DIAGNOSTICS = "com.airtv.receiver.OPEN_DIAGNOSTICS"
         const val PLAYBACK_HINT_DURATION_MS = 5_000L
         const val CONNECTING_HINT_DELAY_MS = 15_000L
         const val DIAGNOSTICS_INTERVAL_MS = 1_000L

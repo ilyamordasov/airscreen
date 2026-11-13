@@ -48,42 +48,41 @@ class VpnActivity : Activity() {
         super.onCreate(savedInstanceState)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(11, 23, 35))
-            setPadding(dp(48), dp(28), dp(48), dp(28))
         }
-        root.addView(label("VPN для FreeCast TV", 32f))
         profileStatus = label(profileLabel(), 19f)
-        root.addView(profileStatus)
         status = label(FreeCastVpnService.state, 21f)
-        root.addView(status)
         importStatus = label("", 18f)
-        root.addView(importStatus)
+        val info = TvChrome.panel(this)
+        info.addView(TvChrome.label(this, "СОСТОЯНИЕ", 13f).apply { setTextColor(getColor(com.airtv.receiver.R.color.accent)) })
+        info.addView(status)
+        info.addView(profileStatus)
+        info.addView(importStatus)
+        root.addView(info, LinearLayout.LayoutParams(-1, -2))
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        root.addView(row, LinearLayout.LayoutParams(-1, 0, 1f))
-        val qr = ImageView(this).apply { setBackgroundColor(Color.WHITE); setPadding(8, 8, 8, 8) }
-        row.addView(qr, LinearLayout.LayoutParams(dp(280), dp(280)))
+        root.addView(row, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(16) })
+        val qr = ImageView(this).apply { setBackgroundColor(Color.WHITE); setPadding(dp(8), dp(8), dp(8), dp(8)) }
+        row.addView(qr, LinearLayout.LayoutParams(dp(220), dp(220)))
         val instructions = label("", 18f)
-        row.addView(instructions, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(28) })
+        val instructionPanel = TvChrome.panel(this)
+        instructionPanel.addView(instructions)
+        row.addView(instructionPanel, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(20) })
         val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         root.addView(buttons)
-        buttons.addView(Button(this).apply {
-            text = "Подключить"
+        buttons.addView(TvChrome.action(this, "Подключить", true).apply {
             setOnClickListener { connect() }
-        })
-        buttons.addView(Button(this).apply {
-            text = "Отключить"
+        }, LinearLayout.LayoutParams(0, dp(58), 1f))
+        buttons.addView(TvChrome.action(this, "Отключить").apply {
             setOnClickListener { stopService(Intent(this@VpnActivity, FreeCastVpnService::class.java)) }
-        })
-        buttons.addView(Button(this).apply {
-            text = "Удалить профиль"
+        }, LinearLayout.LayoutParams(0, dp(58), 1f).apply { leftMargin = dp(12) })
+        buttons.addView(TvChrome.action(this, "Удалить профиль").apply {
             setOnClickListener {
                 stopService(Intent(this@VpnActivity, FreeCastVpnService::class.java))
                 VpnProfileStore.clear(this@VpnActivity)
                 profileStatus.text = profileLabel()
             }
-        })
-        buttons.addView(Button(this).apply { text = "Назад"; setOnClickListener { finish() } })
-        setContentView(root)
+        }, LinearLayout.LayoutParams(0, dp(58), 1f).apply { leftMargin = dp(12) })
+        setContentView(TvChrome.page(this, TvChrome.Section.VPN, "FREECAST • СЕТЬ", "VPN",
+            "Подключение только для FreeCast TV", root))
 
         val address = localAddress()
         if (address == null) {

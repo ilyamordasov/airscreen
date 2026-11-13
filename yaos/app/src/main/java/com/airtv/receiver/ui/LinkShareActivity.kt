@@ -32,28 +32,21 @@ class LinkShareActivity : Activity() {
         val code = SecureRandom().nextInt(1_000_000).toString().padStart(6, '0')
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(11, 23, 35))
-            setPadding(dp(48), dp(36), dp(48), dp(36))
         }
-        root.addView(label("Передать ссылку с iPhone", 32f))
         status = label("Подготавливаем приём ссылки…", 21f)
-        root.addView(status, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            topMargin = dp(16)
-        })
+        val statusPanel = TvChrome.panel(this)
+        statusPanel.addView(status)
+        root.addView(statusPanel, LinearLayout.LayoutParams(-1, -2))
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         root.addView(row, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(18) })
         val qr = ImageView(this).apply { setBackgroundColor(Color.WHITE); setPadding(dp(8), dp(8), dp(8), dp(8)) }
-        row.addView(qr, LinearLayout.LayoutParams(dp(290), dp(290)))
+        row.addView(qr, LinearLayout.LayoutParams(dp(220), dp(220)))
         val instructions = label("", 18f)
-        row.addView(instructions, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-            leftMargin = dp(32)
-        })
-        root.addView(Button(this).apply {
-            text = "Готово"
-            minHeight = dp(56)
-            setOnClickListener { finish() }
-        }, LinearLayout.LayoutParams(dp(220), ViewGroup.LayoutParams.WRAP_CONTENT))
-        setContentView(root)
+        val instructionsPanel = TvChrome.panel(this)
+        instructionsPanel.addView(instructions)
+        row.addView(instructionsPanel, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(24) })
+        setContentView(TvChrome.page(this, TvChrome.Section.BROADCASTS, "FREECAST • IPHONE",
+            "Передать ссылку", "Откройте страницу с видео на телевизоре", root))
 
         val address = localAddress()
         if (address == null) {

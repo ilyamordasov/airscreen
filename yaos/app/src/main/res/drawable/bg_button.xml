@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_enabled="false"><shape android:shape="rectangle"><solid android:color="#102029" /><stroke android:width="1dp" android:color="#23333D" /><corners android:radius="9dp" /></shape></item>
-    <item android:state_pressed="true"><shape android:shape="rectangle"><solid android:color="#2B625C" /><stroke android:width="2dp" android:color="@color/accent" /><corners android:radius="9dp" /></shape></item>
-    <item android:state_focused="true"><shape android:shape="rectangle"><solid android:color="#244A49" /><stroke android:width="2dp" android:color="@color/accent" /><corners android:radius="9dp" /></shape></item>
-    <item ><shape android:shape="rectangle"><solid android:color="#1A2B37" /><stroke android:width="1dp" android:color="#3A5161" /><corners android:radius="9dp" /></shape></item>
+    <item android:state_enabled="false"><shape><solid android:color="#60303952" /><corners android:radius="16dp" /></shape></item>
+    <item android:state_focused="true"><shape><solid android:color="@color/focus_surface" /><stroke android:width="3dp" android:color="@color/accent" /><corners android:radius="16dp" /></shape></item>
+    <item android:state_pressed="true"><shape><solid android:color="#E9EBF8" /><corners android:radius="16dp" /></shape></item>
+    <item><shape><solid android:color="#A5363A61" /><stroke android:width="1dp" android:color="#77748CAD" /><corners android:radius="16dp" /></shape></item>
 </selector>

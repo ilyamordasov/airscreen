@@ -18,18 +18,18 @@
         <RadioGroup android:id="@+id/settings_resolution" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="8dp" android:orientation="horizontal">
             <RadioButton android:id="@+id/quality_720" style="@style/FreeCast.RadioChoice"
-                android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1" android:text="@string/settings_720p" />
+                android:layout_width="0dp" android:layout_height="72dp" android:layout_weight="1" android:text="@string/settings_720p" />
             <RadioButton android:id="@+id/quality_1080" style="@style/FreeCast.RadioChoice"
-                android:layout_width="0dp" android:layout_height="44dp" android:layout_marginStart="12dp"
+                android:layout_width="0dp" android:layout_height="72dp" android:layout_marginStart="12dp"
                 android:layout_weight="1" android:text="@string/settings_1080p" />
         </RadioGroup>
         <TextView style="@style/FreeCast.FieldLabel" android:layout_marginTop="18dp" android:text="@string/settings_framerate" />
         <RadioGroup android:id="@+id/settings_framerate" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="8dp" android:orientation="horizontal">
             <RadioButton android:id="@+id/fps_30" style="@style/FreeCast.RadioChoice"
-                android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1" android:text="@string/settings_30fps" />
+                android:layout_width="0dp" android:layout_height="72dp" android:layout_weight="1" android:text="@string/settings_30fps" />
             <RadioButton android:id="@+id/fps_60" style="@style/FreeCast.RadioChoice"
-                android:layout_width="0dp" android:layout_height="44dp" android:layout_marginStart="12dp"
+                android:layout_width="0dp" android:layout_height="72dp" android:layout_marginStart="12dp"
                 android:layout_weight="1" android:text="@string/settings_60fps" />
         </RadioGroup>
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp"

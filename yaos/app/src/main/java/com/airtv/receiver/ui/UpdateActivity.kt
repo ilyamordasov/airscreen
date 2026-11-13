@@ -37,50 +37,34 @@ class UpdateActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        status = TextView(this).apply {
-            textSize = 21f
-            setTextColor(Color.WHITE)
-            text = getString(R.string.update_checking)
-        }
+        status = TvChrome.label(this, getString(R.string.update_checking), 22f)
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 100
             visibility = ProgressBar.GONE
         }
-        action = Button(this).apply {
-            text = getString(R.string.action_refresh)
+        action = TvChrome.action(this, getString(R.string.action_refresh), true).apply {
             minHeight = dp(60)
             isEnabled = false
             setOnClickListener {
                 if (release == null) checkLatest() else downloadAndInstall()
             }
         }
-        val back = Button(this).apply {
-            text = getString(R.string.action_done)
-            minHeight = dp(60)
-            setOnClickListener { finish() }
-        }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.BLACK)
-            setPadding(dp(64), dp(32), dp(64), dp(32))
-            addView(TextView(this@UpdateActivity).apply {
-                text = getString(R.string.update_title)
-                textSize = 30f
-                setTextColor(Color.WHITE)
-            }, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT))
-            addView(status, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = dp(24)
-            })
-            addView(progress, LinearLayout.LayoutParams(-1, dp(20)).apply { topMargin = dp(24) })
-            addView(action, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = dp(28)
-            })
-            addView(back, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = dp(12)
-            })
         }
-        setContentView(root)
+        val panel = TvChrome.panel(this)
+        panel.addView(TvChrome.label(this, "ВЕРСИЯ ПРИЛОЖЕНИЯ", 13f).apply {
+            setTextColor(getColor(R.color.accent))
+        })
+        panel.addView(TvChrome.label(this, BuildConfig.VERSION_NAME, 36f),
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        panel.addView(status, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) })
+        panel.addView(progress, LinearLayout.LayoutParams(-1, dp(20)).apply { topMargin = dp(24) })
+        root.addView(panel, LinearLayout.LayoutParams(-1, -2))
+        root.addView(action, LinearLayout.LayoutParams(dp(260), dp(60)).apply { topMargin = dp(20) })
+        setContentView(TvChrome.page(this, TvChrome.Section.UPDATES, "FREECAST • ПРИЛОЖЕНИЕ",
+            "Обновления", "Установка новой версии по сети", root))
         action.requestFocus()
         checkLatest()
     }

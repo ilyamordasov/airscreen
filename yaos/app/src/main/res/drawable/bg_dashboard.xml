@@ -1,2 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle"><gradient android:angle="315" android:startColor="#09121B" android:endColor="#152735" /></shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><shape android:shape="rectangle"><gradient android:angle="0"
+        android:startColor="#101029" android:centerColor="#291127" android:endColor="#102A59" /></shape></item>
+    <item><shape android:shape="rectangle"><gradient android:type="radial"
+        android:centerX="0.53" android:centerY="0.08" android:gradientRadius="700dp"
+        android:startColor="#7A8F1738" android:endColor="#00201640" /></shape></item>
+    <item><shape android:shape="rectangle"><gradient android:type="radial"
+        android:centerX="1.0" android:centerY="0.82" android:gradientRadius="700dp"
+        android:startColor="#652A67D1" android:endColor="#002A67D1" /></shape></item>
+</layer-list>

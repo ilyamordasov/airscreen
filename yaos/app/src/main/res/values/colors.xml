@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="background">#09121B</color>
-    <color name="foreground">#F3F7FA</color>
-    <color name="muted">#A4B6C2</color>
-    <color name="accent">#77E4D4</color>
-    <color name="warning">#FFD493</color>
-    <color name="error">#FFB0A4</color>
-    <color name="card">#14212C</color>
-    <color name="border">#2D414F</color>
+    <color name="background">#0B0C24</color>
+    <color name="foreground">#F8F7FC</color>
+    <color name="muted">#BEC1D3</color>
+    <color name="accent">#E64B55</color>
+    <color name="warning">#FFC47A</color>
+    <color name="error">#FF9A9D</color>
+    <color name="card">#25263F</color>
+    <color name="border">#505475</color>
+    <color name="ink">#10142B</color>
+    <color name="focus_surface">#F7F8FF</color>
 </resources>

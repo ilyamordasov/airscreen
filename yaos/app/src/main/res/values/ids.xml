@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="nav_home" type="id" />
+    <item name="nav_rail" type="id" />
+    <item name="settings_button" type="id" />
+    <item name="diagnostics_button" type="id" />
+    <item name="broadcasts_button" type="id" />
+    <item name="update_button" type="id" />
+    <item name="vpn_button" type="id" />
+    <item name="exit_button" type="id" />
+</resources>

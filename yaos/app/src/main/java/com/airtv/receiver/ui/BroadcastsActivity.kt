@@ -28,6 +28,7 @@ class BroadcastsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_broadcasts)
+        TvChrome.installRail(this, findViewById(R.id.nav_rail), TvChrome.Section.BROADCASTS)
         tiles = findViewById(R.id.broadcasts_tiles)
         status = findViewById(R.id.broadcasts_status)
         aceStatus = findViewById(R.id.ace_status)
@@ -216,10 +217,11 @@ class BroadcastsActivity : Activity() {
         val button = Button(this).apply {
             text = title
             isAllCaps = false
-            textSize = 18f
-            setTextColor(getColor(R.color.foreground))
+            textSize = 20f
+            setTextColor(getColorStateList(R.color.button_text))
             setBackgroundResource(R.drawable.bg_button)
-            minHeight = dp(72)
+            minHeight = dp(112)
+            gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.START
             setPadding(dp(24), dp(12), dp(24), dp(12))
             setOnClickListener {
                 if (url == "freecast:share") {
@@ -235,9 +237,16 @@ class BroadcastsActivity : Activity() {
                 }
             }
         }
-        tiles.addView(button, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-            bottomMargin = dp(12)
+        val row = if (tiles.childCount > 0 && (tiles.getChildAt(tiles.childCount - 1) as LinearLayout).childCount < 2) {
+            tiles.getChildAt(tiles.childCount - 1) as LinearLayout
+        } else {
+            LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                tiles.addView(this, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
+            }
+        }
+        row.addView(button, LinearLayout.LayoutParams(0, dp(112), 1f).apply {
+            if (row.childCount > 0) leftMargin = dp(12)
         })
     }
 
