@@ -62,8 +62,8 @@ workflow = {
             "ActionIndex": 1,
             "Category": "Parameter",
             "ParameterKey": "WFURL",
-            "Text": "Введите адрес с экрана FreeCast TV целиком, включая /command",
-            "DefaultValue": "http://192.168.1.2:38752/command",
+            "Text": "Обязательно замените адрес: введите адрес с ТВ целиком, включая /command",
+            "DefaultValue": "",
         },
     ],
     "WFWorkflowActions": [
@@ -79,7 +79,7 @@ workflow = {
             "WFWorkflowActionParameters": {
                 "UUID": REQUEST_UUID,
                 "Advanced": True,
-                "WFURL": "http://192.168.1.2:38752/command",
+                "WFURL": "",
                 "WFHTTPMethod": "POST",
                 "WFHTTPBodyType": "Form",
                 "WFFormValues": {
