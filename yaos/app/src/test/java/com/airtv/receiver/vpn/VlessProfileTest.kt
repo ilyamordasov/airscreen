@@ -14,6 +14,7 @@ class VlessProfileTest {
         assertEquals("publicKey", expected.publicKey)
         assertEquals(expected, VlessProfile.fromSubscription("# one\n$link\n"))
         assertEquals(expected, VlessProfile.fromSubscription(Base64.getEncoder().encodeToString(link.toByteArray(StandardCharsets.UTF_8))))
+        assertEquals(expected, VlessProfile.fromSubscription(Base64.getUrlEncoder().withoutPadding().encodeToString(link.toByteArray(StandardCharsets.UTF_8))))
         assertFalse(expected.toString().contains(expected.uuid))
     }
 

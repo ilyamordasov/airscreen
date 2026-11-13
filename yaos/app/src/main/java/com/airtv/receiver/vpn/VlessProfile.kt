@@ -3,7 +3,6 @@ package com.airtv.receiver.vpn
 import java.net.URI
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import java.util.Base64
 import java.util.UUID
 
 /** A deliberately narrow parser for standard VLESS share links. Never log this value. */
@@ -32,7 +31,7 @@ data class VlessProfile(
             val candidate = if (plain.contains("vless://")) plain else {
                 runCatching {
                     val compact = plain.filterNot(Char::isWhitespace)
-                    String(Base64.getDecoder().decode(compact), StandardCharsets.UTF_8)
+                    String(decodeBase64(compact), StandardCharsets.UTF_8)
                 }.getOrElse { throw IllegalArgumentException("Подписка не содержит VLESS-ссылок") }
             }
             val link = candidate.lineSequence().map(String::trim).firstOrNull { it.startsWith("vless://") }
@@ -70,5 +69,33 @@ data class VlessProfile(
         }
 
         private fun decode(value: String): String = URLDecoder.decode(value.replace("+", "%2B"), "UTF-8")
+
+        // java.util.Base64 requires API 26; FreeCast supports API 24 TVs as well.
+        private fun decodeBase64(value: String): ByteArray {
+            val source = value.trimEnd('=')
+            require(value.length - source.length <= 2 && source.length % 4 != 1)
+            val output = ByteArray(source.length * 3 / 4 + 2)
+            var accumulator = 0
+            var bits = 0
+            var count = 0
+            for (character in source) {
+                val digit = when (character) {
+                    in 'A'..'Z' -> character - 'A'
+                    in 'a'..'z' -> character - 'a' + 26
+                    in '0'..'9' -> character - '0' + 52
+                    '+', '-' -> 62
+                    '/', '_' -> 63
+                    else -> throw IllegalArgumentException("Неверная кодировка подписки")
+                }
+                accumulator = (accumulator shl 6) or digit
+                bits += 6
+                if (bits >= 8) {
+                    bits -= 8
+                    output[count++] = (accumulator shr bits).toByte()
+                    accumulator = accumulator and ((1 shl bits) - 1)
+                }
+            }
+            return output.copyOf(count)
+        }
     }
 }
