@@ -36,7 +36,6 @@ class StreamPlaybackActivity : Activity() {
 
         playerView = PlayerView(this).apply {
             useController = true
-            setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
             isFocusable = true
             isFocusableInTouchMode = true
         }
