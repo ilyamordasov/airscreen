@@ -27,7 +27,7 @@
     <string name="status_audio_unsupported_detail">Формат %1$s не поддерживается. Для изображения и звука выберите «Повтор экрана» на iPhone.</string>
     <string name="detail_starting">Подготавливаем подключение к iPhone.</string>
     <string name="detail_stopped">Нажмите «Запустить», чтобы подключить iPhone.</string>
-    <string name="detail_ready">Выберите имя телевизора в «Повторе экрана» на iPhone.</string>
+    <string name="detail_ready">Видео: AirPlay в плеере iPhone. Экран: «Повтор экрана» в Пункте управления.</string>
     <string name="detail_connecting">Ожидаем изображение с iPhone.</string>
     <string name="detail_connecting_long">Изображение пока не пришло. Выберите «Повтор экрана» ещё раз или откройте диагностику.</string>
     <string name="detail_streaming">Изображение передаётся на телевизор.</string>

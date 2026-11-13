@@ -22,6 +22,7 @@ import com.airtv.receiver.update.ReleaseClient
 import com.airtv.receiver.update.ReleaseInfo
 import com.airtv.receiver.update.ReleaseVersion
 import java.io.File
+import kotlin.math.roundToInt
 
 /** Downloads a signed GitHub Release and hands it to the TV's package installer. */
 class UpdateActivity : Activity() {
@@ -47,6 +48,7 @@ class UpdateActivity : Activity() {
         }
         action = Button(this).apply {
             text = getString(R.string.action_refresh)
+            minHeight = dp(60)
             isEnabled = false
             setOnClickListener {
                 if (release == null) checkLatest() else downloadAndInstall()
@@ -54,24 +56,29 @@ class UpdateActivity : Activity() {
         }
         val back = Button(this).apply {
             text = getString(R.string.action_done)
+            minHeight = dp(60)
             setOnClickListener { finish() }
         }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
             setBackgroundColor(Color.BLACK)
-            setPadding(64, 32, 64, 32)
+            setPadding(dp(64), dp(32), dp(64), dp(32))
             addView(TextView(this@UpdateActivity).apply {
                 text = getString(R.string.update_title)
                 textSize = 30f
                 setTextColor(Color.WHITE)
             }, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT))
             addView(status, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = 24
+                topMargin = dp(24)
             })
-            addView(progress, LinearLayout.LayoutParams(-1, 20).apply { topMargin = 24 })
-            addView(action, LinearLayout.LayoutParams(-1, 60).apply { topMargin = 28 })
-            addView(back, LinearLayout.LayoutParams(-1, 60).apply { topMargin = 12 })
+            addView(progress, LinearLayout.LayoutParams(-1, dp(20)).apply { topMargin = dp(24) })
+            addView(action, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(28)
+            })
+            addView(back, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(12)
+            })
         }
         setContentView(root)
         action.requestFocus()
@@ -230,4 +237,6 @@ class UpdateActivity : Activity() {
             checkLatest()
         }
     }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 }
