@@ -119,7 +119,7 @@ object TvChrome {
     }
 
     private fun navigate(activity: Activity, target: Section, selected: Section) {
-        if (target == selected) return
+        if (target == selected && (target != Section.BROADCASTS || activity is BroadcastsActivity)) return
         when (target) {
             Section.HOME -> openMainPanel(activity, null)
             Section.SETTINGS -> openMainPanel(activity, MainActivity.ACTION_OPEN_SETTINGS)
@@ -138,7 +138,7 @@ object TvChrome {
 
     private fun openMainPanel(activity: Activity, action: String?) {
         activity.startActivity(Intent(activity, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             if (action != null) this.action = action
         })
         activity.finish()
