@@ -61,6 +61,7 @@ class MainActivity : Activity() {
     private lateinit var diagnosticsButton: Button
     private lateinit var broadcastsButton: Button
     private lateinit var updateButton: Button
+    private lateinit var vpnButton: Button
     private lateinit var resumeButton: Button
     private lateinit var playbackHint: View
 
@@ -139,6 +140,7 @@ class MainActivity : Activity() {
         diagnosticsButton = findViewById(R.id.diagnostics_button)
         broadcastsButton = findViewById(R.id.broadcasts_button)
         updateButton = findViewById(R.id.update_button)
+        vpnButton = findViewById(R.id.vpn_button)
         resumeButton = findViewById(R.id.resume_button)
         playbackHint = findViewById(R.id.playback_hint)
 
@@ -147,12 +149,13 @@ class MainActivity : Activity() {
         diagnosticsButton.setOnClickListener { showDiagnostics() }
         broadcastsButton.setOnClickListener { startActivity(Intent(this, BroadcastsActivity::class.java)) }
         updateButton.setOnClickListener { startActivity(Intent(this, UpdateActivity::class.java)) }
+        vpnButton.setOnClickListener { startActivity(Intent(this, VpnActivity::class.java)) }
         resumeButton.setOnClickListener { hideControls() }
         findViewById<View>(R.id.exit_button).apply {
             setOnClickListener { requestExit() }
             nextFocusDownId = R.id.settings_button
         }
-        listOf(toggleButton, settingsButton, diagnosticsButton, broadcastsButton, updateButton, resumeButton).forEach {
+        listOf(toggleButton, settingsButton, diagnosticsButton, broadcastsButton, updateButton, vpnButton, resumeButton).forEach {
             it.nextFocusUpId = R.id.exit_button
         }
         checkForUpdates()

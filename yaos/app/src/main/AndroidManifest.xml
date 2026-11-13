@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
@@ -55,11 +56,23 @@
             android:screenOrientation="landscape" />
         <activity android:name=".ui.StreamPlaybackActivity" android:exported="false"
             android:screenOrientation="landscape" />
+        <activity android:name=".ui.VpnActivity" android:exported="false"
+            android:screenOrientation="landscape" />
 
         <service
             android:name=".service.AirPlayService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice|mediaPlayback" />
+
+        <service
+            android:name=".vpn.FreeCastVpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:foregroundServiceType="systemExempted">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
 
         <provider
             android:name="androidx.core.content.FileProvider"
