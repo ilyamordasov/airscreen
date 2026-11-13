@@ -14,8 +14,10 @@ class RemoteCommandServer(
             return reply(Response.Status.NOT_FOUND, "Команда не найдена")
         }
         val length = session.headers["content-length"]?.toLongOrNull()
+        val contentType = session.headers["content-type"].orEmpty().lowercase()
         if (length == null || length !in 1..MAX_BYTES ||
-            !session.headers["content-type"].orEmpty().startsWith("application/x-www-form-urlencoded")) {
+            !(contentType.startsWith("application/x-www-form-urlencoded") ||
+                contentType.startsWith("multipart/form-data; boundary="))) {
             return reply(Response.Status.BAD_REQUEST, "Неверный формат команды")
         }
         try {
