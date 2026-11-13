@@ -76,7 +76,10 @@ class StreamPlaybackActivity : Activity() {
             override fun onPlayerError(error: PlaybackException) {
                 status.visibility = View.VISIBLE
                 status.text = "Поток недоступен на ТВ (${error.errorCodeName})."
-                if (pageUrl != null && pageUrl != mediaUrl) openPage.visibility = View.VISIBLE
+                if (pageUrl != null && pageUrl != mediaUrl) {
+                    openPage.visibility = View.VISIBLE
+                    openPage.requestFocus()
+                }
             }
         })
         val media = MediaItem.Builder().setUri(mediaUrl).apply {
@@ -89,7 +92,8 @@ class StreamPlaybackActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
-        if (playerView.dispatchKeyEvent(event)) true else super.dispatchKeyEvent(event)
+        if (openPage.visibility != View.VISIBLE && playerView.dispatchKeyEvent(event)) true
+        else super.dispatchKeyEvent(event)
 
     override fun onDestroy() {
         if (::playerView.isInitialized) playerView.player = null
