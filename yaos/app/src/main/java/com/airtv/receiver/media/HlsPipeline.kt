@@ -10,8 +10,6 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 
 /** Plays AirPlay video on the TV, independently of the screen mirror decoder. */
@@ -57,7 +55,9 @@ class HlsPipeline(private val context: Context) {
                     }
 
                     override fun onPlayerError(error: PlaybackException) {
-                        if (token == generation) onError?.invoke(describeError(error))
+                        if (token == generation) {
+                            onError?.invoke("Не удалось воспроизвести AirPlay-видео: ${error.errorCodeName}.")
+                        }
                     }
                 })
                 val item = MediaItem.Builder().setUri(uri).apply {
@@ -86,25 +86,4 @@ class HlsPipeline(private val context: Context) {
         player = null
     }
 
-    @OptIn(UnstableApi::class)
-    private fun describeError(error: PlaybackException): String {
-        var cause: Throwable? = error
-        repeat(5) {
-            if (cause is HttpDataSource.InvalidResponseCodeException) {
-                val response = cause as HttpDataSource.InvalidResponseCodeException
-                return "Не удалось загрузить ${resourceLabel(response.dataSpec.uri)}: HTTP ${response.responseCode}."
-            }
-            if (cause is HttpDataSource.HttpDataSourceException) {
-                val failure = cause as HttpDataSource.HttpDataSourceException
-                return "Не удалось загрузить ${resourceLabel(failure.dataSpec.uri)}: ${error.errorCodeName}."
-            }
-            cause = cause?.cause
-        }
-        return "Не удалось воспроизвести AirPlay-видео: ${error.errorCodeName}."
-    }
-
-    private fun resourceLabel(uri: Uri): String = when {
-        uri.path?.endsWith(".m3u8", ignoreCase = true) == true -> "плейлист AirPlay"
-        else -> "видеоданные AirPlay"
-    }
 }
