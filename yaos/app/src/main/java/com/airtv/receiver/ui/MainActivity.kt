@@ -120,6 +120,8 @@ class MainActivity : Activity() {
         }
     }
 
+    // TvChrome installs the navigation buttons into nav_rail before they are looked up below.
+    @android.annotation.SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
