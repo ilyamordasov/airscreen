@@ -68,7 +68,7 @@ jobs:
           SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: ./gradlew testReleaseUnitTest assembleRelease -PversionName='${{ steps.version.outputs.name }}' -PversionCode='${{ steps.version.outputs.code }}'
+        run: ./gradlew testReleaseUnitTest assembleRelease lintRelease -PversionName='${{ steps.version.outputs.name }}' -PversionCode='${{ steps.version.outputs.code }}'
       - name: Verify signed APK
         shell: bash
         run: |

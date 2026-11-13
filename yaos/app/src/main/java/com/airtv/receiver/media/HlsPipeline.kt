@@ -90,10 +90,19 @@ class HlsPipeline(private val context: Context) {
         repeat(5) {
             if (cause is HttpDataSource.InvalidResponseCodeException) {
                 val response = cause as HttpDataSource.InvalidResponseCodeException
-                return "Не удалось загрузить AirPlay-видео: HTTP ${response.responseCode}."
+                return "Не удалось загрузить ${resourceLabel(response.dataSpec.uri)}: HTTP ${response.responseCode}."
+            }
+            if (cause is HttpDataSource.HttpDataSourceException) {
+                val failure = cause as HttpDataSource.HttpDataSourceException
+                return "Не удалось загрузить ${resourceLabel(failure.dataSpec.uri)}: ${error.errorCodeName}."
             }
             cause = cause?.cause
         }
         return "Не удалось воспроизвести AirPlay-видео: ${error.errorCodeName}."
+    }
+
+    private fun resourceLabel(uri: Uri): String = when {
+        uri.path?.endsWith(".m3u8", ignoreCase = true) == true -> "плейлист AirPlay"
+        else -> "видеоданные AirPlay"
     }
 }
