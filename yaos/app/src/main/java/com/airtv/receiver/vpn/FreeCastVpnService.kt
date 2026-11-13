@@ -24,6 +24,8 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
     private var tun: ParcelFileDescriptor? = null
     private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
     private var networkListener: ConnectivityManager.NetworkCallback? = null
+    @Volatile private var starting = false
+    @Volatile private var destroyed = false
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
@@ -32,7 +34,7 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
         }
         createChannel()
         startForeground(7, notification())
-        if (command != null) return START_STICKY
+        if (command != null || starting) return START_STICKY
         val profile = VpnProfileStore.load(this)
         if (profile == null) {
             state = "Добавьте VLESS-подписку"
@@ -40,6 +42,7 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
             return START_NOT_STICKY
         }
         state = "Подключение…"
+        starting = true
         Thread {
             try {
                 val setup = SetupOptions().apply {
@@ -59,11 +62,18 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
                 next.startOrReloadService(BoxConfig.create(profile), OverrideOptions().apply {
                     includePackage = StringList(listOf(packageName))
                 })
-                command = next
-                state = "VPN подключён"
+                if (destroyed) {
+                    next.closeService()
+                    next.close()
+                } else {
+                    command = next
+                    state = "VPN подключён"
+                }
             } catch (_: Exception) {
                 state = "Не удалось подключить VPN"
                 stopSelf()
+            } finally {
+                starting = false
             }
         }.start()
         return START_STICKY
@@ -72,6 +82,7 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
     override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 
     override fun onDestroy() {
+        destroyed = true
         runCatching { command?.closeService() }
         runCatching { command?.close() }
         command = null
@@ -79,7 +90,7 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
         tun = null
         networkListener?.let { connectivity.unregisterNetworkCallback(it) }
         networkListener = null
-        state = "VPN выключен"
+        if (state == "Подключение…" || state == "VPN подключён") state = "VPN выключен"
         super.onDestroy()
     }
 

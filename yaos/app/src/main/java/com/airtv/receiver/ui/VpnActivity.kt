@@ -28,12 +28,14 @@ import java.net.NetworkInterface
 import java.net.URL
 import java.security.SecureRandom
 import javax.net.ssl.HttpsURLConnection
+import kotlin.math.roundToInt
 
 /** Import from a phone, then connect only FreeCast to the VLESS tunnel. */
 class VpnActivity : Activity() {
     private var server: VpnImportServer? = null
     private lateinit var status: TextView
     private lateinit var profileStatus: TextView
+    private lateinit var importStatus: TextView
     private val handler = Handler(Looper.getMainLooper())
     private val refresh = object : Runnable {
         override fun run() {
@@ -47,19 +49,21 @@ class VpnActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.rgb(11, 23, 35))
-            setPadding(48, 28, 48, 28)
+            setPadding(dp(48), dp(28), dp(48), dp(28))
         }
         root.addView(label("VPN для FreeCast TV", 32f))
         profileStatus = label(profileLabel(), 19f)
         root.addView(profileStatus)
         status = label(FreeCastVpnService.state, 21f)
         root.addView(status)
+        importStatus = label("", 18f)
+        root.addView(importStatus)
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         root.addView(row, LinearLayout.LayoutParams(-1, 0, 1f))
         val qr = ImageView(this).apply { setBackgroundColor(Color.WHITE); setPadding(8, 8, 8, 8) }
-        row.addView(qr, LinearLayout.LayoutParams(280, 280))
+        row.addView(qr, LinearLayout.LayoutParams(dp(280), dp(280)))
         val instructions = label("", 18f)
-        row.addView(instructions, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = 28 })
+        row.addView(instructions, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(28) })
         val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         root.addView(buttons)
         buttons.addView(Button(this).apply {
@@ -104,20 +108,27 @@ class VpnActivity : Activity() {
     override fun onDestroy() { server?.stop(); server = null; super.onDestroy() }
 
     private fun import(value: String) {
-        runOnUiThread { status.text = "Загружаем профиль…" }
+        runOnUiThread { importStatus.text = "Загружаем профиль…" }
         Thread {
             try {
                 val content = if (value.startsWith("vless://")) value else download(value)
                 val profile = VlessProfile.fromSubscription(content)
+                stopService(Intent(this, FreeCastVpnService::class.java))
                 VpnProfileStore.save(this, profile)
                 runOnUiThread {
                     if (!isDestroyed) {
                         profileStatus.text = profileLabel()
-                        status.text = "Профиль сохранён. Нажмите «Подключить»."
+                        importStatus.text = "Профиль сохранён. Нажмите «Подключить»."
                     }
                 }
             } catch (error: Exception) {
-                runOnUiThread { if (!isDestroyed) status.text = error.message?.take(100) ?: "Не удалось импортировать профиль" }
+                runOnUiThread {
+                    if (!isDestroyed) importStatus.text = when (error.message) {
+                        "Подписка не содержит VLESS-ссылок" -> "Подписка не содержит обычных VLESS-ссылок. Нужен другой формат импорта."
+                        "Подписка слишком большая" -> "Подписка слишком большая."
+                        else -> "Не удалось импортировать профиль. Проверьте ссылку и формат."
+                    }
+                }
             }
         }.start()
     }
@@ -147,7 +158,7 @@ class VpnActivity : Activity() {
 
     private fun connect() {
         if (VpnProfileStore.load(this) == null) {
-            status.text = "Сначала добавьте профиль"
+            importStatus.text = "Сначала добавьте профиль"
             return
         }
         val permission = VpnService.prepare(this)
@@ -158,7 +169,7 @@ class VpnActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == VPN_PERMISSION_REQUEST) {
-            if (resultCode == RESULT_OK) startVpn() else status.text = "Разрешение VPN не выдано"
+            if (resultCode == RESULT_OK) startVpn() else importStatus.text = "Разрешение VPN не выдано"
         }
     }
 
@@ -168,6 +179,7 @@ class VpnActivity : Activity() {
 
     private fun profileLabel(): String = if (VpnProfileStore.load(this) == null) "Профиль не добавлен" else "VLESS-профиль добавлен"
     private fun label(value: String, size: Float) = TextView(this).apply { text = value; textSize = size; setTextColor(Color.WHITE) }
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
     private fun qrBitmap(value: String): Bitmap {
         val pixels = QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, 280, 280)
         return Bitmap.createBitmap(280, 280, Bitmap.Config.ARGB_8888).apply {
