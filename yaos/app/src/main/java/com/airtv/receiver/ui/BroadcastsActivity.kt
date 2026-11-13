@@ -1,7 +1,6 @@
 package com.airtv.receiver.ui
 
 import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -16,6 +15,7 @@ import com.airtv.receiver.R
 import java.net.HttpURLConnection
 import java.net.URL
 import org.json.JSONObject
+import kotlin.math.roundToInt
 
 /** TV-side directory of official Spartak football broadcasts and channel pages. */
 class BroadcastsActivity : Activity() {
@@ -39,6 +39,7 @@ class BroadcastsActivity : Activity() {
     private fun load() {
         val generation = ++loadGeneration
         tiles.removeAllViews()
+        addTile("Передать ссылку с телефона", "freecast:share")
         addTile("Матч ТВ — бесплатный прямой эфир", "https://matchtv.ru/video/channel/matchtv")
         addTile("Матч Премьер — по подписке (приложение МАТЧ!)", "https://matchtv.ru/match-app")
         addTile("Все трансляции Спартака", CATALOG_URL)
@@ -218,30 +219,29 @@ class BroadcastsActivity : Activity() {
             textSize = 18f
             setTextColor(getColor(R.color.foreground))
             setBackgroundResource(R.drawable.bg_button)
-            setPadding(24, 12, 24, 12)
+            minHeight = dp(72)
+            setPadding(dp(24), dp(12), dp(24), dp(12))
             setOnClickListener {
-                try {
-                    if (url.startsWith("acestream:")) {
-                        if (url.contains("content_id=")) launchAceContentId(url.substringAfter("content_id="))
-                        else startAce(url.substringAfter("infohash="))
-                    } else {
-                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    }
-                } catch (_: ActivityNotFoundException) {
-                    if (url.startsWith("acestream:")) {
-                        Toast.makeText(this@BroadcastsActivity,
-                            "Установите Ace Stream на телевизор для P2P-эфиров.", Toast.LENGTH_LONG).show()
-                    } else {
-                        startActivity(Intent(this@BroadcastsActivity, BroadcastWebActivity::class.java)
-                            .putExtra(BroadcastWebActivity.EXTRA_URL, url))
-                    }
+                if (url == "freecast:share") {
+                    startActivity(Intent(this@BroadcastsActivity, LinkShareActivity::class.java))
+                    return@setOnClickListener
+                }
+                if (url.startsWith("acestream:")) {
+                    if (url.contains("content_id=")) launchAceContentId(url.substringAfter("content_id="))
+                    else startAce(url.substringAfter("infohash="))
+                } else {
+                    startActivity(Intent(this@BroadcastsActivity, BroadcastWebActivity::class.java)
+                        .putExtra(BroadcastWebActivity.EXTRA_URL, url))
                 }
             }
         }
-        tiles.addView(button, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 72).apply {
-            bottomMargin = 12
+        tiles.addView(button, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            bottomMargin = dp(12)
         })
     }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
     private companion object {
         const val CATALOG_URL = "https://matchtv.ru/football/club/spartak-moscow/broadcasts"

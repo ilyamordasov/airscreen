@@ -1,0 +1,115 @@
+package com.airtv.receiver.ui
+
+import android.app.Activity
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.os.Bundle
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import com.airtv.receiver.link.LinkShareServer
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
+import fi.iki.elonen.NanoHTTPD
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.security.SecureRandom
+import kotlin.math.roundToInt
+
+/** Shows the LAN link inbox while the phone scans and sends a Safari page URL. */
+class LinkShareActivity : Activity() {
+    private var server: LinkShareServer? = null
+    private lateinit var status: TextView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val code = SecureRandom().nextInt(1_000_000).toString().padStart(6, '0')
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.rgb(11, 23, 35))
+            setPadding(dp(48), dp(36), dp(48), dp(36))
+        }
+        root.addView(label("Передать ссылку с iPhone", 32f))
+        status = label("Подготавливаем приём ссылки…", 21f)
+        root.addView(status, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(16)
+        })
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        root.addView(row, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(18) })
+        val qr = ImageView(this).apply { setBackgroundColor(Color.WHITE); setPadding(dp(8), dp(8), dp(8), dp(8)) }
+        row.addView(qr, LinearLayout.LayoutParams(dp(290), dp(290)))
+        val instructions = label("", 22f)
+        row.addView(instructions, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+            leftMargin = dp(32)
+        })
+        root.addView(Button(this).apply {
+            text = "Готово"
+            minHeight = dp(56)
+            setOnClickListener { finish() }
+        }, LinearLayout.LayoutParams(dp(220), ViewGroup.LayoutParams.WRAP_CONTENT))
+        setContentView(root)
+
+        val address = localAddress()
+        if (address == null) {
+            status.text = "У телевизора нет адреса локальной сети."
+            return
+        }
+        val url = "http://$address:${LinkShareServer.PORT}/"
+        try {
+            val next = LinkShareServer(code) { page ->
+                runOnUiThread {
+                    if (!isFinishing && !isDestroyed) {
+                        status.text = "Ссылка получена. Открываем страницу на ТВ…"
+                        startActivity(Intent(this, BroadcastWebActivity::class.java)
+                            .putExtra(BroadcastWebActivity.EXTRA_URL, page))
+                    }
+                }
+            }
+            next.start(NanoHTTPD.SOCKET_READ_TIMEOUT, true)
+            server = next
+            qr.setImageBitmap(qrBitmap(url))
+            status.text = "Откройте камеру iPhone и наведите её на QR-код."
+            instructions.text = "1. Скопируйте ссылку на видео в Safari.\n2. Откройте QR-код и вставьте ссылку.\n3. Введите код: $code\n\nЕсли камера не открывает QR-код: $url"
+        } catch (error: Exception) {
+            server?.stop()
+            server = null
+            status.text = "Не удалось открыть приём ссылки: ${error.localizedMessage.orEmpty()}"
+        }
+    }
+
+    override fun onDestroy() {
+        server?.stop()
+        server = null
+        super.onDestroy()
+    }
+
+    private fun label(value: String, size: Float): TextView = TextView(this).apply {
+        text = value
+        textSize = size
+        setTextColor(Color.WHITE)
+    }
+
+    private fun qrBitmap(value: String): Bitmap {
+        val pixels = QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, 280, 280)
+        return Bitmap.createBitmap(280, 280, Bitmap.Config.ARGB_8888).apply {
+            for (y in 0 until 280) for (x in 0 until 280) {
+                setPixel(x, y, if (pixels[x, y]) Color.BLACK else Color.WHITE)
+            }
+        }
+    }
+
+    private fun localAddress(): String? = runCatching {
+        NetworkInterface.getNetworkInterfaces().asSequence()
+            .filter { it.isUp && !it.isLoopback }
+            .flatMap { it.inetAddresses.asSequence() }
+            .filterIsInstance<Inet4Address>()
+            .firstOrNull { !it.isLoopbackAddress && !it.isLinkLocalAddress }
+            ?.hostAddress
+    }.getOrNull()
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
+}

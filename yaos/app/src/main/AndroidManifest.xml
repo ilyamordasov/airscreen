@@ -45,6 +45,8 @@
 
         <activity android:name=".ui.BroadcastsActivity" android:exported="false"
             android:screenOrientation="landscape" />
+        <activity android:name=".ui.LinkShareActivity" android:exported="false"
+            android:screenOrientation="landscape" />
         <activity android:name=".ui.UpdateActivity" android:exported="false"
             android:screenOrientation="landscape" />
         <activity android:name=".ui.AcePlaybackActivity" android:exported="false"

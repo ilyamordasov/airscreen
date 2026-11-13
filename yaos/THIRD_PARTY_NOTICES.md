@@ -51,6 +51,9 @@ commercial binaries.
 AndroidX core 1.13.1, AppCompat 1.7.0, lifecycle-service 2.8.4 and their resolved
 AndroidX dependencies are Apache-2.0 licensed. Kotlin standard library is Apache-2.0.
 These are resolved through the official Google Maven / Maven Central repositories.
+AndroidX Media3 ExoPlayer/HLS 1.4.1 is Apache-2.0. ZXing core 3.5.4 is Apache-2.0
+(https://github.com/zxing/zxing). NanoHTTPD 2.3.1 is BSD-3-Clause
+(https://github.com/NanoHttpd/nanohttpd/blob/master/LICENSE.md).
 JUnit 4.13.2 and AndroidX Test are development/test dependencies and are not in the
 release APK. Dependency declarations are in app/build.gradle.kts.
 
