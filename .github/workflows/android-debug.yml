@@ -40,7 +40,7 @@ jobs:
         run: |
           report=app/build/reports/lint-results-debug.txt
           if [[ -f "$report" ]]; then
-            rg -n -A 2 'Error:' "$report" | head -100 || true
+            grep -n -A 2 'Error:' "$report" | head -100 || true
           fi
       - uses: actions/upload-artifact@v4
         with:
