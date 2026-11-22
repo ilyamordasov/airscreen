@@ -56,7 +56,9 @@
         <activity android:name=".ui.BroadcastWebActivity" android:exported="false"
             android:screenOrientation="landscape" />
         <activity android:name=".ui.StreamPlaybackActivity" android:exported="false"
-            android:screenOrientation="landscape" />
+            android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation"
+            android:theme="@style/Theme.FreeCast.Playback" />
         <activity android:name=".ui.VpnActivity" android:exported="false"
             android:screenOrientation="landscape" />
 

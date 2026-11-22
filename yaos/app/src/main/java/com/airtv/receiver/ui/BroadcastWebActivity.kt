@@ -20,6 +20,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.airtv.receiver.link.MediaCandidate
 import com.airtv.receiver.link.SharedPage
+import com.airtv.receiver.link.TvCrateResolver
 import org.json.JSONTokener
 import kotlin.math.roundToInt
 
@@ -45,6 +46,12 @@ class BroadcastWebActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pageUrl = intent.getStringExtra(EXTRA_URL)?.let(SharedPage::parse) ?: run { finish(); return }
+        if (!intent.getBooleanExtra(EXTRA_FORCE_WEB, false) && TvCrateResolver.supports(pageUrl)) {
+            startActivity(Intent(this, StreamPlaybackActivity::class.java)
+                .putExtra(StreamPlaybackActivity.EXTRA_SOURCE_PAGE, pageUrl))
+            finish()
+            return
+        }
         discovering = intent.getBooleanExtra(EXTRA_DISCOVER_MEDIA, false)
         if (discovering) {
             MediaCandidate.parse(pageUrl)?.let { openStream(it); return }
@@ -209,7 +216,7 @@ class BroadcastWebActivity : Activity() {
         when {
             pointerMode -> setPointerMode(false)
             fullScreenView != null -> hideFullScreenVideo()
-            web.canGoBack() -> web.goBack()
+            ::web.isInitialized && web.canGoBack() -> web.goBack()
             else -> super.onBackPressed()
         }
     }
@@ -238,6 +245,8 @@ class BroadcastWebActivity : Activity() {
     companion object {
         const val EXTRA_URL = "broadcast_url"
         const val EXTRA_DISCOVER_MEDIA = "discover_media"
+        /** Explicit user fallback must not route straight back into the native resolver. */
+        const val EXTRA_FORCE_WEB = "force_web_page"
         private const val VIDEO_URL_JS = """(function(){for(const v of document.querySelectorAll('video,source')){const u=v.currentSrc||v.src;if(u&&u.startsWith('https://'))return u}return ''})()"""
     }
 }

@@ -12,12 +12,13 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import com.airtv.receiver.R
+import com.airtv.receiver.link.TvCrateResolver
 import java.net.HttpURLConnection
 import java.net.URL
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
-/** TV-side directory of official Spartak football broadcasts and channel pages. */
+/** TV-side directory of football broadcasts and channel pages. */
 class BroadcastsActivity : Activity() {
     private lateinit var tiles: LinearLayout
     private lateinit var status: TextView
@@ -43,6 +44,7 @@ class BroadcastsActivity : Activity() {
         addTile("Передать ссылку с телефона", "freecast:share")
         addTile("Матч ТВ — бесплатный прямой эфир", "https://matchtv.ru/video/channel/matchtv")
         addTile("Матч Премьер — по подписке (приложение МАТЧ!)", "https://matchtv.ru/match-app")
+        addTile("Матч! Премьер · TVCrate", TvCrateResolver.MATCH_PREMIER_URL)
         addTile("Все трансляции Спартака", CATALOG_URL)
         status.text = "Обновляем список матчей…"
         aceStatus.text = "Ищем P2P-эфиры через Ace Stream Engine…"
