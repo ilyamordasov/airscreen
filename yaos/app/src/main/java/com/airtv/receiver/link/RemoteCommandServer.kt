@@ -32,7 +32,7 @@ class RemoteCommandServer(
         val url = session.parameters["url"]?.singleOrNull()?.let(SharedPage::parse)
             ?: return reply(Response.Status.BAD_REQUEST, "Нужна ссылка HTTPS")
         onPage(url)
-        return reply(Response.Status.OK, "Открываем на ТВ")
+        return reply(Response.Status.OK, "Ссылка принята. Она откроется, когда FreeCast TV будет на экране.")
     }
 
     private fun reply(status: Response.Status, message: String): Response =

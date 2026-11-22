@@ -17,6 +17,7 @@ import android.os.IBinder
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.airtv.receiver.FreeCastApplication
 import com.airtv.receiver.R
 import com.airtv.receiver.airplay.AirPlayReceiver
 import com.airtv.receiver.airplay.ReceiverState
@@ -24,7 +25,6 @@ import com.airtv.receiver.link.PairingSecret
 import com.airtv.receiver.link.RemoteCommandServer
 import com.airtv.receiver.settings.ReceiverPreferences
 import com.airtv.receiver.settings.ReceiverSettings
-import com.airtv.receiver.ui.BroadcastWebActivity
 import com.airtv.receiver.ui.MainActivity
 import fi.iki.elonen.NanoHTTPD
 import java.util.concurrent.Executors
@@ -96,10 +96,7 @@ class AirPlayService : Service() {
         runCatching {
             RemoteCommandServer(PairingSecret.get(this), { url ->
                 mainHandler.post {
-                    if (!destroyed) startActivity(Intent(this, BroadcastWebActivity::class.java)
-                        .putExtra(BroadcastWebActivity.EXTRA_URL, url)
-                        .putExtra(BroadcastWebActivity.EXTRA_DISCOVER_MEDIA, true)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    if (!destroyed) (application as FreeCastApplication).receivePage(url)
                 }
             }).also {
                 it.start(NanoHTTPD.SOCKET_READ_TIMEOUT, true)
