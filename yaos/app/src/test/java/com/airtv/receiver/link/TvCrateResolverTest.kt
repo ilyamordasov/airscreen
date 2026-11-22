@@ -165,7 +165,9 @@ class TvCrateResolverTest {
     @Test fun `HTTP errors remain visible and do not try other sources`() {
         for (code in listOf(403, 404, 429, 503)) {
             val http = transport(token = TvCrateResponse(code, ""))
-            assertTrue(expectIo { resolver(http).resolve(channel) }.message!!.contains(code.toString()))
+            val error = expectIo { resolver(http).resolve(channel) } as TvCrateHttpException
+            assertEquals(code, error.statusCode)
+            assertTrue(error.message!!.contains(code.toString()))
             assertEquals(3, http.requests.size)
         }
     }

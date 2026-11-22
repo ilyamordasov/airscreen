@@ -27,6 +27,8 @@ fun interface TvCrateTransport {
 
 data class TvCrateResponse(val statusCode: Int, val body: String)
 
+internal class TvCrateHttpException(val statusCode: Int, message: String) : IOException(message)
+
 /**
  * Reads the public iframe configuration, then uses the same native-HLS endpoint as
  * TVCrate's player. n=1 is essential: its playlists include signed segment URLs.
@@ -87,10 +89,10 @@ class TvCrateResolver(
         ensureActive()
         when (response.statusCode) {
             in 200..299 -> Unit
-            403 -> throw IOException("TVCrate отклонил запрос (HTTP 403). Можно открыть страницу.")
-            404 -> throw IOException("Канал или плеер TVCrate не найден (HTTP 404).")
-            429 -> throw IOException("TVCrate просит подождать (HTTP 429). Повторите позже.")
-            else -> throw IOException("TVCrate временно недоступен (HTTP ${response.statusCode}).")
+            403 -> throw TvCrateHttpException(403, "TVCrate отклонил запрос (HTTP 403). Можно открыть страницу.")
+            404 -> throw TvCrateHttpException(404, "Канал или плеер TVCrate не найден (HTTP 404).")
+            429 -> throw TvCrateHttpException(429, "TVCrate просит подождать (HTTP 429). Повторите позже.")
+            else -> throw TvCrateHttpException(response.statusCode, "TVCrate временно недоступен (HTTP ${response.statusCode}).")
         }
         if (response.body.length > MAX_RESPONSE_BYTES) throw IOException("Ответ TVCrate слишком большой.")
         return response.body

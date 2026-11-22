@@ -1,11 +1,14 @@
 package com.airtv.receiver.ui
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
+import android.net.VpnService
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.Gravity
 import android.view.KeyEvent
@@ -32,8 +35,13 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.airtv.receiver.link.MediaCandidate
 import com.airtv.receiver.link.SharedPage
+import com.airtv.receiver.link.TvCrateHttpException
 import com.airtv.receiver.link.TvCrateResolver
 import com.airtv.receiver.link.TvCrateStream
+import com.airtv.receiver.vpn.FreeCastVpnService
+import com.airtv.receiver.vpn.VpnProfileStore
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 
@@ -56,6 +64,8 @@ class StreamPlaybackActivity : Activity() {
     private var resumePosition = 0L
     private var resumePlayback = true
     private var automaticRecoveryUsed = false
+    private var vpnPermissionRequested = false
+    private var vpnPermissionPending = false
     private var revealKeyCode = KeyEvent.KEYCODE_UNKNOWN
     private val refreshStream = Runnable {
         if (active && tvCratePage != null) resolveTvCrate(fresh = true, silent = true)
@@ -95,6 +105,7 @@ class StreamPlaybackActivity : Activity() {
             isFocusableInTouchMode = true
             setOnClickListener {
                 automaticRecoveryUsed = false
+                vpnPermissionRequested = false
                 resumePlayback = true
                 player?.playWhenReady = true
                 if (tvCratePage != null) resolveTvCrate(fresh = true)
@@ -165,9 +176,27 @@ class StreamPlaybackActivity : Activity() {
         val requestGeneration = ++generation
         resolveJob?.cancel(true)
         main.removeCallbacks(refreshStream)
-        if (!silent) showLoading("Получаем адрес трансляции TVCrate…")
+        val useVpn = VpnProfileStore.load(this) != null
+        if (useVpn && !ensureVpnStarted(silent)) return
+        if (!silent) {
+            showLoading(if (useVpn && FreeCastVpnService.connectionState != FreeCastVpnService.State.CONNECTED) {
+                "Подключаем VPN…"
+            } else {
+                "Получаем адрес трансляции TVCrate…"
+            })
+        }
         resolveJob = resolverExecutor.submit {
-            val result = runCatching { TvCrateResolver().resolve(page, fresh) }
+            val result = runCatching {
+                if (useVpn) {
+                    awaitVpn()
+                    if (!silent) main.post {
+                        if (active && !isFinishing && !isDestroyed && requestGeneration == generation) {
+                            showLoading("Получаем адрес трансляции TVCrate…")
+                        }
+                    }
+                }
+                TvCrateResolver().resolve(page, fresh)
+            }
             main.post {
                 if (!active || isFinishing || isDestroyed || requestGeneration != generation) return@post
                 resolveJob = null
@@ -175,15 +204,63 @@ class StreamPlaybackActivity : Activity() {
                     play(stream.mediaUrl, stream)
                     scheduleRefresh(stream.expiresAtEpochSeconds)
                 }.onFailure { error ->
-                    Log.w(TAG, "TVCrate lookup failed (${error.javaClass.simpleName}, refresh=$silent)")
+                    val http = (error as? TvCrateHttpException)?.statusCode
+                    Log.w(TAG, "TVCrate lookup failed (${error.javaClass.simpleName}, HTTP=$http, refresh=$silent)")
                     // A proactive refresh failure must not interrupt a still-valid running stream.
                     if (!silent || player == null || player?.playerError != null) {
-                        showError("Не удалось получить трансляцию TVCrate. Повторите попытку или откройте страницу.")
+                        showError(when (error) {
+                            is VpnConnectionException -> "Не удалось подключить VPN. Повторите попытку или проверьте профиль в разделе VPN."
+                            is TvCrateHttpException -> error.message.orEmpty()
+                            is SocketTimeoutException, is UnknownHostException -> "Сервер TVCrate не ответил. Повторите попытку."
+                            else -> "Не удалось получить трансляцию TVCrate. Повторите попытку или откройте страницу."
+                        })
                     }
                 }
             }
         }
     }
+
+    private fun ensureVpnStarted(silent: Boolean): Boolean {
+        val permission = VpnService.prepare(this)
+        if (permission == null) {
+            FreeCastVpnService.connect(this)
+            return true
+        }
+        if (silent || vpnPermissionPending) return false
+        if (vpnPermissionRequested) {
+            showError("Для TVCrate разрешите подключение VPN. Нажмите «Повторить».")
+            return false
+        }
+        vpnPermissionRequested = true
+        vpnPermissionPending = true
+        showLoading("Подтвердите подключение VPN…")
+        try {
+            startActivityForResult(permission, VPN_PERMISSION_REQUEST)
+        } catch (_: ActivityNotFoundException) {
+            vpnPermissionPending = false
+            showError("Android не открыл запрос на подключение VPN. Проверьте настройки VPN.")
+        }
+        return false
+    }
+
+    @Deprecated("Android VPN consent uses startActivityForResult")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != VPN_PERMISSION_REQUEST) return
+        vpnPermissionPending = false
+        if (active) resolveTvCrate(fresh = false)
+    }
+
+    private fun awaitVpn() {
+        val deadline = SystemClock.elapsedRealtime() + 15_000
+        while (FreeCastVpnService.connectionState == FreeCastVpnService.State.CONNECTING &&
+            SystemClock.elapsedRealtime() < deadline) {
+            Thread.sleep(100)
+        }
+        if (FreeCastVpnService.connectionState != FreeCastVpnService.State.CONNECTED) throw VpnConnectionException()
+    }
+
+    private class VpnConnectionException : Exception()
 
     private fun play(url: String, stream: TvCrateStream? = null) {
         if (!active || isFinishing || isDestroyed) return
@@ -355,6 +432,7 @@ class StreamPlaybackActivity : Activity() {
 
     companion object {
         private const val TAG = "StreamPlaybackActivity"
+        private const val VPN_PERMISSION_REQUEST = 815
         const val EXTRA_MEDIA_URL = "com.airtv.receiver.MEDIA_URL"
         const val EXTRA_SOURCE_PAGE = "com.airtv.receiver.SOURCE_PAGE"
     }

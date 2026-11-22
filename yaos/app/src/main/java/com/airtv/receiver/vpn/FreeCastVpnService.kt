@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.LinkProperties
@@ -17,7 +18,10 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.system.OsConstants
+import android.util.Log
+import androidx.annotation.MainThread
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.airtv.receiver.R
 import com.airtv.receiver.ui.MainActivity
 import io.nekohasekai.libbox.*
@@ -25,6 +29,14 @@ import java.net.NetworkInterface as JavaNetworkInterface
 
 /** Per-app tunnel. The profile never leaves private app storage or enters diagnostics. */
 class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler {
+    internal enum class State(val label: String) {
+        OFF("VPN выключен"),
+        NO_PROFILE("Добавьте VLESS-подписку"),
+        CONNECTING("Подключение…"),
+        CONNECTED("VPN подключён"),
+        FAILED("Не удалось подключить VPN"),
+    }
+
     private var command: CommandServer? = null
     private var tun: ParcelFileDescriptor? = null
     private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
@@ -42,11 +54,11 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
         if (command != null || starting) return START_STICKY
         val profile = VpnProfileStore.load(this)
         if (profile == null) {
-            state = "Добавьте VLESS-подписку"
+            connectionState = State.NO_PROFILE
             stopSelf()
             return START_NOT_STICKY
         }
-        state = "Подключение…"
+        connectionState = State.CONNECTING
         starting = true
         Thread {
             try {
@@ -72,10 +84,11 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
                     next.close()
                 } else {
                     command = next
-                    state = "VPN подключён"
+                    connectionState = State.CONNECTED
                 }
-            } catch (_: Exception) {
-                state = "Не удалось подключить VPN"
+            } catch (error: Exception) {
+                Log.w(TAG, "VPN startup failed (${error.javaClass.simpleName})")
+                connectionState = State.FAILED
                 stopSelf()
             } finally {
                 starting = false
@@ -95,7 +108,7 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
         tun = null
         networkListener?.let { connectivity.unregisterNetworkCallback(it) }
         networkListener = null
-        if (state == "Подключение…" || state == "VPN подключён") state = "VPN выключен"
+        if (connectionState == State.CONNECTING || connectionState == State.CONNECTED) connectionState = State.OFF
         super.onDestroy()
     }
 
@@ -240,9 +253,23 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
 
     companion object {
         const val ACTION_STOP = "com.airtv.receiver.vpn.STOP"
-        @Volatile var state: String = "VPN выключен"
+        private const val TAG = "FreeCastVpnService"
+        internal val state: String get() = connectionState.label
+        @Volatile internal var connectionState = State.OFF
             private set
         @Volatile private var initialized = false
+
+        @MainThread
+        internal fun connect(context: Context) {
+            if (connectionState == State.CONNECTING || connectionState == State.CONNECTED) return
+            connectionState = State.CONNECTING
+            try {
+                ContextCompat.startForegroundService(context, Intent(context, FreeCastVpnService::class.java))
+            } catch (error: RuntimeException) {
+                Log.w(TAG, "VPN start request failed (${error.javaClass.simpleName})")
+                connectionState = State.FAILED
+            }
+        }
     }
 }
 

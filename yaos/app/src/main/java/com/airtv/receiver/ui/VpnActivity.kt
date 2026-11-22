@@ -14,7 +14,6 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import com.airtv.receiver.vpn.FreeCastVpnService
 import com.airtv.receiver.vpn.VlessProfile
 import com.airtv.receiver.vpn.VpnImportServer
@@ -173,7 +172,7 @@ class VpnActivity : Activity() {
     }
 
     private fun startVpn() {
-        ContextCompat.startForegroundService(this, Intent(this, FreeCastVpnService::class.java))
+        FreeCastVpnService.connect(this)
     }
 
     private fun profileLabel(): String = if (VpnProfileStore.load(this) == null) "Профиль не добавлен" else "VLESS-профиль добавлен"
