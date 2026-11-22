@@ -92,6 +92,7 @@ class StreamPlaybackActivity : Activity() {
         retry = Button(this).apply {
             text = "Повторить"
             visibility = View.GONE
+            isFocusableInTouchMode = true
             setOnClickListener {
                 automaticRecoveryUsed = false
                 resumePlayback = true
