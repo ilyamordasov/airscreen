@@ -17,7 +17,12 @@ object BoxConfig {
                 put("tls", JSONObject().apply {
                     put("enabled", true)
                     put("server_name", profile.sni ?: profile.server)
-                    (profile.fingerprint ?: if (profile.security == "reality") "chrome" else null)?.let {
+                    val fingerprint = when (profile.fingerprint?.lowercase()) {
+                        "hellofirefox_120" -> "firefox"
+                        null -> if (profile.security == "reality") "chrome" else null
+                        else -> profile.fingerprint
+                    }
+                    fingerprint?.let {
                         put("utls", JSONObject().put("enabled", true).put("fingerprint", it))
                     }
                     if (profile.security == "reality") {

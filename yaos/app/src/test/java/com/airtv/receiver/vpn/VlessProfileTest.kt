@@ -29,4 +29,19 @@ class VlessProfileTest {
         val config = JSONObject(BoxConfig.create(VlessProfile.parse(link)))
         assertTrue(config.getJSONObject("route").optBoolean("auto_detect_interface"))
     }
+
+    @Test fun usesSupportedFingerprintForStoredFirefoxAlias() {
+        val fingerprints = mapOf(
+            "hellofirefox_120" to "firefox",
+            "HelloFirefox_120" to "firefox",
+            "edge" to "edge",
+        )
+        for ((stored, expected) in fingerprints) {
+            val profile = VlessProfile.parse(link).copy(fingerprint = stored)
+            val config = JSONObject(BoxConfig.create(profile))
+            val tls = config.getJSONArray("outbounds").getJSONObject(0).getJSONObject("tls")
+            assertEquals(expected, tls.getJSONObject("utls").getString("fingerprint"))
+            assertTrue(tls.getJSONObject("reality").getBoolean("enabled"))
+        }
+    }
 }
