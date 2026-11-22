@@ -6,11 +6,15 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.net.ConnectivityManager
+import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import androidx.core.app.NotificationCompat
 import com.airtv.receiver.R
@@ -139,11 +143,14 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
     override fun findConnectionOwner(ipProtocol: Int, sourceAddress: String, sourcePort: Int, destinationAddress: String, destinationPort: Int): ConnectionOwner = error("Process lookup unavailable")
 
     override fun getInterfaces(): NetworkInterfaceIterator {
+        val links = connectivity.allNetworks.mapNotNull(connectivity::getLinkProperties)
+            .associateBy { it.interfaceName }
         val interfaces = JavaNetworkInterface.getNetworkInterfaces()?.toList().orEmpty().map { item ->
             io.nekohasekai.libbox.NetworkInterface().apply {
                 name = item.name
                 index = item.index
                 mtu = item.mtu
+                dnsServer = StringList(links[item.name]?.dnsServers.orEmpty().mapNotNull { it.hostAddress })
                 addresses = StringList(item.interfaceAddresses.mapNotNull { address ->
                     val host = address.address.hostAddress?.substringBefore('%') ?: return@mapNotNull null
                     "$host/${address.networkPrefixLength}"
@@ -157,19 +164,42 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
     }
 
     override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
-        fun update(network: Network?) {
-            val name = network?.let { connectivity.getLinkProperties(it)?.interfaceName }.orEmpty()
-            val index = runCatching { JavaNetworkInterface.getByName(name)?.index ?: 0 }.getOrDefault(0)
+        fun update(network: Network?, properties: LinkProperties?) {
+            val name = properties?.interfaceName.orEmpty()
+            val index = runCatching { JavaNetworkInterface.getByName(name)?.index }.getOrNull() ?: -1
             val metered = network?.let { connectivity.getNetworkCapabilities(it)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == false } ?: false
             listener.updateDefaultInterface(name, index, metered, false)
         }
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) = update(network)
-            override fun onLost(network: Network) = update(connectivity.activeNetwork)
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .build()
+        val active = connectivity.activeNetwork?.takeIf {
+            connectivity.getNetworkCapabilities(it)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN) == true
         }
-        connectivity.registerDefaultNetworkCallback(callback)
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            private var current = active
+
+            override fun onLinkPropertiesChanged(network: Network, properties: LinkProperties) {
+                current = network
+                update(network, properties)
+            }
+
+            override fun onLost(network: Network) {
+                if (network != current) return
+                current = null
+                update(null, null)
+            }
+        }
+        update(active, active?.let(connectivity::getLinkProperties))
+        when {
+            Build.VERSION.SDK_INT >= 31 -> connectivity.registerBestMatchingNetworkCallback(
+                request, callback, Handler(Looper.getMainLooper()),
+            )
+            Build.VERSION.SDK_INT >= 28 -> connectivity.requestNetwork(request, callback)
+            else -> connectivity.registerDefaultNetworkCallback(callback)
+        }
         networkListener = callback
-        update(connectivity.activeNetwork)
     }
 
     override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
