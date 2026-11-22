@@ -1,5 +1,6 @@
 package com.airtv.receiver.vpn
 
+import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import java.nio.charset.StandardCharsets
@@ -22,5 +23,10 @@ class VlessProfileTest {
         assertThrows(IllegalArgumentException::class.java) { VlessProfile.parse(link.replace("type=tcp", "type=grpc")) }
         assertThrows(IllegalArgumentException::class.java) { VlessProfile.parse(link.replace("pbk=publicKey", "pbk=")) }
         assertThrows(IllegalArgumentException::class.java) { VlessProfile.fromSubscription("not a subscription") }
+    }
+
+    @Test fun enablesSocketProtectionForTheTunnel() {
+        val config = JSONObject(BoxConfig.create(VlessProfile.parse(link)))
+        assertTrue(config.getJSONObject("route").optBoolean("auto_detect_interface"))
     }
 }

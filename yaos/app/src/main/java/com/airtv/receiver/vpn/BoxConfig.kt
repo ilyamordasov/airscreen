@@ -56,6 +56,7 @@ object BoxConfig {
             }))
             put("outbounds", JSONArray().put(outbound).put(JSONObject().put("type", "direct").put("tag", "direct")))
             put("route", JSONObject().apply {
+                put("auto_detect_interface", true)
                 put("rules", JSONArray()
                     .put(JSONObject().put("ip_is_private", true).put("action", "route").put("outbound", "direct"))
                     .put(JSONObject().put("ip_cidr", JSONArray().put("224.0.0.0/4").put("ff00::/8")

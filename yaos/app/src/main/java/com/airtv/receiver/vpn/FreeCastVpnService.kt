@@ -16,6 +16,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.ParcelFileDescriptor
+import android.system.OsConstants
 import androidx.core.app.NotificationCompat
 import com.airtv.receiver.R
 import com.airtv.receiver.ui.MainActivity
@@ -118,7 +119,9 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
         return descriptor.fd
     }
 
-    override fun autoDetectInterfaceControl(fd: Int) { protect(fd) }
+    override fun autoDetectInterfaceControl(fd: Int) {
+        check(protect(fd)) { "Unable to route socket outside the VPN" }
+    }
     override fun usePlatformAutoDetectInterfaceControl() = true
     override fun includeAllNetworks() = false
     override fun underNetworkExtension() = false
@@ -150,6 +153,9 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
                 name = item.name
                 index = item.index
                 mtu = item.mtu
+                if (links.containsKey(item.name) && item.isUp) {
+                    flags = OsConstants.IFF_UP or OsConstants.IFF_RUNNING
+                }
                 dnsServer = StringList(links[item.name]?.dnsServers.orEmpty().mapNotNull { it.hostAddress })
                 addresses = StringList(item.interfaceAddresses.mapNotNull { address ->
                     val host = address.address.hostAddress?.substringBefore('%') ?: return@mapNotNull null
