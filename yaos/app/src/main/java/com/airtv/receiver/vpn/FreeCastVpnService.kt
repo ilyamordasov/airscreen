@@ -144,7 +144,10 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
                 name = item.name
                 index = item.index
                 mtu = item.mtu
-                addresses = StringList(item.interfaceAddresses.map { it.address.hostAddress })
+                addresses = StringList(item.interfaceAddresses.mapNotNull { address ->
+                    val host = address.address.hostAddress?.substringBefore('%') ?: return@mapNotNull null
+                    "$host/${address.networkPrefixLength}"
+                })
             }
         }.iterator()
         return object : NetworkInterfaceIterator {
