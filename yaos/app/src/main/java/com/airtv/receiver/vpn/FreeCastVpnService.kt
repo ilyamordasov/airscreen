@@ -191,7 +191,9 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
     }
 
     private fun notification(): Notification {
-        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        val openMain = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        val open = PendingIntent.getActivity(this, 0, openMain, PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, "freecast_vpn")
             .setSmallIcon(R.drawable.ic_freecast).setContentTitle("FreeCast VPN")
             .setContentText("Подключение VLESS активно").setContentIntent(open).setOngoing(true).build()

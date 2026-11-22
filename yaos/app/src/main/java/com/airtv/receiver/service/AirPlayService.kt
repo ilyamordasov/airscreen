@@ -198,7 +198,9 @@ class AirPlayService : Service() {
             ReceiverState.Starting -> getString(R.string.status_starting)
         }
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        val open = PendingIntent.getActivity(this, 1, Intent(this, MainActivity::class.java), flags)
+        val openMain = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        val open = PendingIntent.getActivity(this, 1, openMain, flags)
         val stop = PendingIntent.getService(this, 2, Intent(this, AirPlayService::class.java).setAction(ACTION_STOP), flags)
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, CHANNEL_ID)
             else @Suppress("DEPRECATION") Notification.Builder(this)
