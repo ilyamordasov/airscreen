@@ -124,4 +124,15 @@
     <string name="dashboard_back">Назад</string>
     <string name="dashboard_send_link">Передать ссылку</string>
     <string name="dashboard_vpn_qr">QR-код для подключения VPN</string>
+    <string name="pairing_code">Код на ТВ</string>
+    <string name="pairing_vpn_title">Добавить VPN-профиль</string>
+    <string name="pairing_vpn_instructions">Наведите камеру на QR-код. Вставьте ссылку подписки или VLESS и введите цифры с ТВ.</string>
+    <string name="pairing_vpn_back">К настройкам VPN</string>
+    <string name="pairing_link_qr">QR-код для передачи ссылки</string>
+    <string name="pairing_link_title">Откройте камеру iPhone</string>
+    <string name="pairing_link_instructions">Наведите камеру на QR-код. Вставьте ссылку из Safari и введите цифры с ТВ.</string>
+    <string name="pairing_network_missing">Подключите телефон и телевизор к одной локальной сети и откройте этот экран заново.</string>
+    <string name="pairing_shortcut_show">Команда для Safari</string>
+    <string name="pairing_shortcut_hide">Скрыть данные команды</string>
+    <string name="pairing_shortcut_details">Для быстрой передачи из Safari настройте команду AirScreen.\nАдрес: %1$s\nКлюч: %2$s</string>
 </resources>

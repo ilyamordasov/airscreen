@@ -2,24 +2,27 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:orientation="vertical">
-    <TextView android:id="@+id/broadcasts_status" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="4dp" android:text="Загружаем трансляции…" android:textColor="@color/muted"
-        android:textSize="15sp" />
-    <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
-        android:layout_marginTop="14dp" android:fillViewport="true">
-        <LinearLayout android:id="@+id/broadcasts_tiles" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:orientation="vertical" />
-    </ScrollView>
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="12dp" android:background="@drawable/bg_card"
-        android:orientation="vertical" android:padding="16dp">
-        <TextView android:id="@+id/ace_status" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="Проверяем Ace Stream…" android:textColor="@color/muted" android:textSize="13sp" />
-        <TextView android:id="@+id/directory_status" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="4dp" android:text="Проверяем каталог P2P…"
-            android:textColor="@color/muted" android:textSize="13sp" />
+        android:orientation="horizontal" android:gravity="center_vertical" android:baselineAligned="false">
+        <TextView android:id="@+id/broadcasts_status" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:textColor="@color/muted" android:textSize="15sp" />
+        <Button android:id="@+id/broadcasts_refresh" style="@style/FreeCast.ActionButton"
+            android:layout_width="160dp" android:layout_height="46dp" android:layout_marginStart="16dp"
+            android:text="@string/action_refresh" />
     </LinearLayout>
-    <Button android:id="@+id/broadcasts_refresh" style="@style/FreeCast.ActionButton"
-        android:layout_width="210dp" android:layout_height="56dp" android:layout_marginTop="12dp"
-        android:text="Обновить" />
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:layout_marginTop="12dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <LinearLayout android:id="@+id/broadcasts_tiles" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:orientation="vertical" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@drawable/bg_card" android:focusable="true"
+                android:orientation="vertical" android:padding="16dp">
+                <TextView android:id="@+id/ace_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textColor="@color/muted" android:textSize="13sp" />
+                <TextView android:id="@+id/directory_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp" android:textColor="@color/muted" android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
 </LinearLayout>

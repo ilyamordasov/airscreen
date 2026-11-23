@@ -4,11 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.RectF
-import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.ConnectivityManager
@@ -227,8 +224,13 @@ internal class TvDashboard(context: Context, open: (Destination) -> Unit) : Fram
     }
 
     private inner class Tile(context: Context, private val destination: Destination) : FrameLayout(context) {
-        private val bounds = RectF()
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val tint = when (destination) {
+            Destination.RECEIVER, Destination.BROADCASTS -> TvGlassDrawable.PINK
+            Destination.VPN -> TvGlassDrawable.BLUE
+            else -> TvGlassDrawable.VIOLET
+        }
+        private val normalGlass = TvGlassDrawable(scale, tint, radiusDp = 19)
+        private val focusedGlass = TvGlassDrawable(scale, tint, radiusDp = 26, focused = true)
         private val title = text(context.getString(destination.title), 20, true).apply {
             maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
@@ -255,7 +257,6 @@ internal class TvDashboard(context: Context, open: (Destination) -> Unit) : Fram
         private var expanded = false
 
         init {
-            setWillNotDraw(false)
             addView(artwork)
             addView(heading)
             addView(title)
@@ -297,7 +298,7 @@ internal class TvDashboard(context: Context, open: (Destination) -> Unit) : Fram
                 marginEnd = size(17)
                 bottomMargin = size(17)
             }
-            updatePaint()
+            background = if (expanded) focusedGlass else normalGlass
         }
 
         private fun position(gap: Int, top: Int) = LayoutParams(-1, -2).apply {
@@ -306,52 +307,6 @@ internal class TvDashboard(context: Context, open: (Destination) -> Unit) : Fram
             topMargin = size(top)
         }
 
-        private var fill: Shader? = null
-        private var rim: Shader? = null
-
-        override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-            super.onSizeChanged(w, h, oldw, oldh)
-            updatePaint()
-        }
-
-        private fun updatePaint() {
-            if (width == 0 || height == 0) return
-            val tint = when (destination) {
-                Destination.RECEIVER, Destination.BROADCASTS -> 0xFFEB50DC.toInt()
-                Destination.VPN -> 0xFF407CFF.toInt()
-                else -> 0xFF9C79F1.toInt()
-            }
-            fill = LinearGradient(0f, 0f, width.toFloat(), height.toFloat(),
-                intArrayOf(tint and 0x00FFFFFF or (if (expanded) 0x55000000 else 0x30000000),
-                    0xF0131525.toInt(), 0xF0192040.toInt()), floatArrayOf(0f, .52f, 1f), Shader.TileMode.CLAMP)
-            rim = LinearGradient(0f, 0f, width.toFloat(), height * .45f,
-                intArrayOf(if (expanded) 0xFFFFCCF7.toInt() else tint, tint,
-                    if (expanded) 0xFF754DFF.toInt() else 0xFF34334F.toInt()), null, Shader.TileMode.CLAMP)
-            invalidate()
-        }
-
-        override fun onDraw(canvas: Canvas) {
-            super.onDraw(canvas)
-            val radius = size(if (expanded) 26 else 19).toFloat()
-            bounds.set(1f, 1f, width - 1f, height - 1f)
-            paint.style = Paint.Style.FILL
-            paint.shader = fill
-            canvas.drawRoundRect(bounds, radius, radius, paint)
-            paint.shader = rim
-            paint.style = Paint.Style.STROKE
-            if (expanded) {
-                for (halo in 8 downTo 2 step 2) {
-                    paint.alpha = 15 - halo
-                    paint.strokeWidth = size(halo * 2).toFloat()
-                    canvas.drawRoundRect(bounds, radius, radius, paint)
-                }
-            }
-            paint.alpha = if (expanded) 255 else 180
-            paint.strokeWidth = size(if (expanded) 2 else 1).coerceAtLeast(1).toFloat()
-            canvas.drawRoundRect(bounds, radius, radius, paint)
-            paint.alpha = 255
-            paint.shader = null
-        }
     }
 
     private enum class HeaderIcon(val label: Int) {

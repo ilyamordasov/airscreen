@@ -20,8 +20,9 @@
             </LinearLayout>
             <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
                 android:layout_marginTop="20dp" android:baselineAligned="false" android:orientation="horizontal">
-                <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1.32"
-                    android:background="@drawable/bg_receiver_card" android:orientation="vertical" android:padding="24dp">
+                <LinearLayout android:id="@+id/receiver_panel"
+                    android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1.32"
+                    android:background="@drawable/bg_card" android:orientation="vertical" android:padding="24dp">
                     <TextView android:id="@+id/receiver_name" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:text="@string/app_name" android:textColor="@color/foreground" android:fontFamily="sans-serif-medium"
                         android:textSize="34sp" android:maxLines="2" android:ellipsize="end" />
@@ -39,7 +40,8 @@
                         android:layout_width="match_parent" android:layout_height="58dp" android:layout_marginTop="18dp"
                         android:nextFocusRight="@id/quick_share" android:text="@string/action_start" />
                 </LinearLayout>
-                <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0.68"
+                <LinearLayout android:id="@+id/receiver_tools"
+                    android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0.68"
                     android:layout_marginStart="16dp" android:orientation="vertical" android:background="@drawable/bg_card"
                     android:padding="20dp">
                     <Button android:id="@+id/quick_share" style="@style/FreeCast.ActionButton"

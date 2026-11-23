@@ -2,8 +2,6 @@ package com.airtv.receiver.ui
 
 import android.app.Activity
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.Color
 import android.net.VpnService
 import android.os.Bundle
 import android.os.Handler
@@ -12,9 +10,8 @@ import android.os.SystemClock
 import android.util.Log
 import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Button
-import android.widget.ImageView
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -27,12 +24,8 @@ import com.airtv.receiver.vpn.ProxyScanner
 import com.airtv.receiver.vpn.VlessProfile
 import com.airtv.receiver.vpn.VpnImportServer
 import com.airtv.receiver.vpn.VpnProfileStore
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.qrcode.QRCodeWriter
 import fi.iki.elonen.NanoHTTPD
 import java.io.ByteArrayOutputStream
-import java.net.Inet4Address
-import java.net.NetworkInterface
 import java.net.URL
 import java.security.SecureRandom
 import java.util.concurrent.Executors
@@ -46,7 +39,11 @@ class VpnActivity : Activity() {
     private lateinit var profileStatus: TextView
     private lateinit var importStatus: TextView
     private lateinit var proxyRows: LinearLayout
-    private lateinit var importPanel: LinearLayout
+    private lateinit var overview: LinearLayout
+    private lateinit var importPanel: TvPairingPanel
+    private lateinit var importAction: Button
+    private lateinit var closeImport: Button
+    private lateinit var deleteAction: Button
     private lateinit var actions: LinearLayout
     private val handler = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
@@ -60,7 +57,7 @@ class VpnActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val root = LinearLayout(this).apply {
+        overview = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
         profileStatus = TvChrome.label(this, profileLabel(), 17f, muted = true)
@@ -68,69 +65,77 @@ class VpnActivity : Activity() {
         importStatus = TvChrome.label(this, "", 16f).apply {
             visibility = View.GONE
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-            doAfterTextChanged { value -> visibility = if (value.isNullOrBlank()) View.GONE else View.VISIBLE }
+            doAfterTextChanged { value ->
+                visibility = if (value.isNullOrBlank()) View.GONE else View.VISIBLE
+                if (::importPanel.isInitialized && importPanel.isShown) importPanel.showFeedback(value)
+            }
         }
         val info = TvChrome.panel(this)
-        info.addView(TvChrome.label(this, "СОСТОЯНИЕ", 13f).apply { setTextColor(getColor(R.color.accent)) })
+        info.addView(TvChrome.label(this, "VPN ТОЛЬКО ДЛЯ AIRSCREEN", 13f).apply { setTextColor(getColor(R.color.accent)) })
         info.addView(LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
             addView(status, LinearLayout.LayoutParams(0, -2, 1f))
             addView(profileStatus, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(16) })
         })
         info.addView(importStatus)
-        root.addView(info, LinearLayout.LayoutParams(-1, -2))
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        importPanel = row
-        val qr = ImageView(this).apply {
-            id = R.id.vpn_import_qr
-            setBackgroundColor(Color.WHITE)
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-            contentDescription = getString(R.string.dashboard_vpn_qr)
-        }
-        row.addView(qr, LinearLayout.LayoutParams(dp(156), dp(156)))
-        val instructions = label("", 18f)
-        val instructionPanel = TvChrome.panel(this)
-        instructionPanel.addView(instructions)
-        row.addView(instructionPanel, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(20) })
-        instructionPanel.addView(TvChrome.action(this, "Удалить профиль").apply {
-            setOnClickListener { if (!busy) deleteProfile() }
-        })
-        actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        root.addView(actions, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+        overview.addView(info, LinearLayout.LayoutParams(-1, -2))
+        actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; isBaselineAligned = false }
+        overview.addView(actions, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
         addAction("Обновить прокси", primary = true, action = ::updateProxies)
         addAction("Подключить", action = ::connect)
         addAction("Отключить", action = ::stopVpn)
-        addAction("Импорт по QR") { showImport(importPanel.visibility != View.VISIBLE) }
+        importAction = addAction("Импорт по QR") { showImport(true) }
         proxyRows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val scroll = ScrollView(this).apply {
-            addView(LinearLayout(this@VpnActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(proxyRows)
-                addView(row)
-            })
+        overview.addView(ScrollView(this).apply { addView(proxyRows) },
+            LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(12) })
+        deleteAction = TvChrome.action(this, "Удалить профиль").apply {
+            setOnClickListener { if (!busy) deleteProfile() }
         }
-        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(12) })
-        renderProxies(VpnProfileStore.proxies(this))
-        setContentView(TvChrome.page(this, TvChrome.Section.VPN, "VPN",
-            "Подключение только для AirScreen", root))
-        actions.getChildAt(0).requestFocus()
+        overview.addView(deleteAction, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
 
-        val address = localAddress()
+        importPanel = TvPairingPanel(this, getString(R.string.dashboard_vpn_qr),
+            getString(R.string.pairing_vpn_title), getString(R.string.pairing_vpn_instructions))
+        closeImport = TvChrome.action(this, getString(R.string.pairing_vpn_back)).apply {
+            setOnClickListener { showImport(false) }
+        }
+        importPanel.setAction(closeImport)
+        val content = FrameLayout(this).apply {
+            addView(overview, FrameLayout.LayoutParams(-1, -1))
+            addView(importPanel, FrameLayout.LayoutParams(-1, -1))
+        }
+        renderProxies(VpnProfileStore.proxies(this))
+        setContentView(TvChrome.page(this, TvChrome.Section.VPN, "VPN", null, content, onBack = ::goBack))
+        val showPairing = savedInstanceState?.getBoolean(STATE_IMPORT_OPEN) ?: (VpnProfileStore.load(this) == null)
+        showImport(showPairing)
+        if (!showPairing) actions.getChildAt(0).requestFocus()
+
+        val address = LanPairingAddress.find(this)
         if (address == null) {
-            instructions.text = "Не найден адрес локальной сети телевизора."
+            importPanel.showFeedback(getString(R.string.pairing_network_missing))
             return
         }
         val token = SecureRandom().nextInt(1_000_000).toString().padStart(6, '0')
         val url = "http://$address:${VpnImportServer.PORT}/"
         try {
             server = VpnImportServer(token) { value -> import(value) }.also { it.start(NanoHTTPD.SOCKET_READ_TIMEOUT, true) }
-            qr.setImageBitmap(qrBitmap(url))
-            instructions.text = "Откройте QR-код на телефоне, вставьте ссылку подписки или vless:// и введите код $token."
+            importPanel.showCode(url, token)
         } catch (_: Exception) {
             server?.stop()
             server = null
-            instructions.text = "Не удалось открыть страницу импорта на ТВ."
+            importPanel.showFeedback("Не удалось открыть страницу импорта на ТВ.")
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(STATE_IMPORT_OPEN, importPanel.visibility == View.VISIBLE)
+        super.onSaveInstanceState(outState)
+    }
+
+    @Deprecated("Android TV hardware Back closes the pairing view first.")
+    override fun onBackPressed() = goBack()
+
+    private fun goBack() {
+        if (importPanel.visibility == View.VISIBLE) showImport(false) else finish()
     }
 
     override fun onResume() { super.onResume(); handler.post(refresh) }
@@ -159,6 +164,7 @@ class VpnActivity : Activity() {
                             renderProxies(emptyList())
                             importStatus.text = if (source == null) "Профиль сохранён."
                                 else "Подписка сохранена. Обновите список прокси."
+                            if (importPanel.visibility == View.VISIBLE) showImport(false)
                         }.onFailure { importStatus.text = "Не удалось сохранить профиль." }
                     }
                 }
@@ -181,7 +187,6 @@ class VpnActivity : Activity() {
         if (busy) return
         val source = VpnProfileStore.subscription(this)
         if (source == null) {
-            importStatus.text = "Добавьте ссылку подписки через QR-код."
             showImport(true)
             return
         }
@@ -228,15 +233,16 @@ class VpnActivity : Activity() {
     private fun renderProxies(proxies: List<CheckedProxy>) {
         val selected = VpnProfileStore.load(this)
         proxyRows.removeAllViews()
+        deleteAction.visibility = if (selected == null) View.GONE else View.VISIBLE
         proxies.forEachIndexed { index, proxy ->
             val name = proxy.profile.name.take(85)
             val suffix = if (proxy.profile == selected) " · выбран" else ""
-            proxyRows.addView(TvChrome.action(this, "${index + 1}. $name · ${proxy.latencyMillis} мс$suffix").apply {
+            proxyRows.addView(TvChrome.glassTile(this, "${index + 1}. $name · ${proxy.latencyMillis} мс$suffix",
+                TvGlassDrawable.BLUE).apply {
                 gravity = Gravity.CENTER_VERTICAL or Gravity.START
                 setOnClickListener { if (!busy) selectProxy(proxy, proxies) }
             }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         }
-        showImport(proxies.isEmpty())
     }
 
     private fun selectProxy(proxy: CheckedProxy, proxies: List<CheckedProxy>) {
@@ -266,19 +272,27 @@ class VpnActivity : Activity() {
         }
     }
 
-    private fun addAction(title: String, primary: Boolean = false, action: () -> Unit) {
-        actions.addView(TvChrome.action(this, title, primary).apply {
+    private fun addAction(title: String, primary: Boolean = false, action: () -> Unit): Button {
+        val button = TvChrome.action(this, title, primary).apply {
+            setPadding(dp(12), 0, dp(12), 0)
             setOnClickListener { if (!busy) action() }
-        }, LinearLayout.LayoutParams(0, dp(58), 1f).apply { if (actions.childCount > 0) leftMargin = dp(10) })
+        }
+        actions.addView(button, LinearLayout.LayoutParams(0, dp(58), 1f).apply {
+            if (actions.childCount > 0) marginStart = dp(8)
+        })
+        return button
     }
 
     private fun showImport(show: Boolean) {
+        overview.visibility = if (show) View.GONE else View.VISIBLE
         importPanel.visibility = if (show) View.VISIBLE else View.GONE
-        proxyRows.visibility = if (show) View.GONE else View.VISIBLE
+        if (show) closeImport.requestFocus()
+        else if (!importAction.requestFocus()) actions.getChildAt(0).requestFocus()
     }
 
     private fun setBusy(value: Boolean) {
         busy = value
+        deleteAction.isEnabled = !value
         for (i in 0 until actions.childCount) actions.getChildAt(i).isEnabled = !value
     }
 
@@ -288,6 +302,7 @@ class VpnActivity : Activity() {
         profileStatus.text = profileLabel()
         importStatus.text = ""
         renderProxies(emptyList())
+        showImport(true)
     }
 
     private fun stopVpn() {
@@ -359,25 +374,10 @@ class VpnActivity : Activity() {
     }
 
     private fun profileLabel(): String = if (VpnProfileStore.load(this) == null) "Профиль не добавлен" else "VLESS-профиль добавлен"
-    private fun label(value: String, size: Float) = TextView(this).apply { text = value; textSize = size; setTextColor(Color.WHITE) }
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
-    private fun qrBitmap(value: String): Bitmap {
-        val pixels = QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, 280, 280)
-        return Bitmap.createBitmap(280, 280, Bitmap.Config.ARGB_8888).apply {
-            for (y in 0 until 280) for (x in 0 until 280) setPixel(x, y, if (pixels[x, y]) Color.BLACK else Color.WHITE)
-        }
-    }
-
-    private fun localAddress(): String? = runCatching {
-        NetworkInterface.getNetworkInterfaces().asSequence()
-            .filter { it.isUp && !it.isLoopback && !it.name.startsWith("tun") }
-            .flatMap { it.inetAddresses.asSequence() }
-            .filterIsInstance<Inet4Address>()
-            .firstOrNull { it.isSiteLocalAddress }
-            ?.hostAddress
-    }.getOrNull()
 
     companion object {
+        private const val STATE_IMPORT_OPEN = "importOpen"
         private const val VPN_PERMISSION_REQUEST = 814
         private const val TAG = "VpnActivity"
     }

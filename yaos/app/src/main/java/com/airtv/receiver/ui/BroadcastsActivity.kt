@@ -218,8 +218,9 @@ class BroadcastsActivity : Activity() {
     }
 
     private fun addTile(title: String, url: String): Button {
-        val button = TvChrome.action(this, title).apply {
-            textSize = 19f
+        val tint = if (url == TvCrateResolver.MATCH_PREMIER_URL) TvGlassDrawable.PINK else TvGlassDrawable.VIOLET
+        val button = TvChrome.glassTile(this, title, tint).apply {
+            textSize = if (resources.configuration.screenHeightDp < 440) 17f else 19f
             gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.START
             setPadding(dp(24), dp(12), dp(24), dp(12))
             setOnClickListener {
@@ -236,16 +237,17 @@ class BroadcastsActivity : Activity() {
                 }
             }
         }
+        val compact = resources.configuration.screenHeightDp < 440
         val row = if (tiles.childCount > 0 && (tiles.getChildAt(tiles.childCount - 1) as LinearLayout).childCount < 2) {
             tiles.getChildAt(tiles.childCount - 1) as LinearLayout
         } else {
             LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 isBaselineAligned = false
-                tiles.addView(this, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
+                tiles.addView(this, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(if (compact) 8 else 12) })
             }
         }
-        row.addView(button, LinearLayout.LayoutParams(0, dp(78), 1f).apply {
+        row.addView(button, LinearLayout.LayoutParams(0, dp(if (compact) 64 else 78), 1f).apply {
             if (row.childCount > 0) marginStart = dp(12)
         })
         return button

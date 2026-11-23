@@ -124,6 +124,9 @@ class MainActivity : Activity() {
         surfaceView = findViewById(R.id.surface)
         overlay = findViewById(R.id.overlay)
         receiverDetails = findViewById(R.id.receiver_details)
+        val density = resources.displayMetrics.density
+        findViewById<View>(R.id.receiver_panel).background = TvGlassDrawable(density, TvGlassDrawable.PINK)
+        findViewById<View>(R.id.receiver_tools).background = TvGlassDrawable(density, TvGlassDrawable.BLUE)
         dashboard = TvDashboard(this, ::openDestination)
         overlay.addView(dashboard, 0, FrameLayout.LayoutParams(-1, -1))
         receiverName = findViewById(R.id.receiver_name)
@@ -622,6 +625,7 @@ class MainActivity : Activity() {
         }
         dialog.show()
         val metrics = resources.displayMetrics
+        dialog.window?.setBackgroundDrawable(TvGlassDrawable(metrics.density))
         val width = min((widthDp * metrics.density).toInt(), (metrics.widthPixels * 0.92f).toInt())
         dialog.window?.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
         dialog.window?.decorView?.post {
