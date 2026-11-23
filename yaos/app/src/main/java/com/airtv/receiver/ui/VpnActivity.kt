@@ -292,6 +292,8 @@ class VpnActivity : Activity() {
             connectTimeout = 10_000
             readTimeout = 15_000
             instanceFollowRedirects = false
+            useCaches = false
+            setRequestProperty("Cache-Control", "no-cache")
             if (userAgent != null) setRequestProperty("User-Agent", userAgent)
             val accept = if (userAgent != null) "application/json, text/plain, */*" else "text/plain, */*"
             setRequestProperty("Accept", accept)
