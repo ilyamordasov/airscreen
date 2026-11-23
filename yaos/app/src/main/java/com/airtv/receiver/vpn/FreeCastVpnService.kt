@@ -45,10 +45,12 @@ class FreeCastVpnService : VpnService() {
         }
     }
     private var started = false
+    @Volatile private var stopping = false
     @Volatile private var destroyed = false
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
+            stopTunnel()
             stopSelf()
             return START_NOT_STICKY
         }
@@ -58,7 +60,7 @@ class FreeCastVpnService : VpnService() {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (started) return START_NOT_STICKY
+        if (started || stopping) return START_NOT_STICKY
         started = true
         activeService = this
         val profile = VpnProfileStore.load(this)
@@ -69,7 +71,7 @@ class FreeCastVpnService : VpnService() {
         }
         connectionState = State.CONNECTING
         worker.execute {
-            if (destroyed) return@execute
+            if (destroyed || stopping) return@execute
             try {
                 BoxRuntime.initialize(this)
                 val next = CommandServer(platform, platform)
@@ -78,12 +80,13 @@ class FreeCastVpnService : VpnService() {
                 next.startOrReloadService(BoxConfig.create(profile), OverrideOptions().apply {
                     includePackage = StringList(listOf(packageName))
                 })
-                main.post { if (!destroyed) connectionState = State.CONNECTED }
+                main.post { if (!destroyed && !stopping) connectionState = State.CONNECTED }
             } catch (error: Exception) {
                 Log.w(TAG, "VPN startup failed (${error.javaClass.simpleName})")
                 main.post {
-                    if (!destroyed) {
+                    if (!destroyed && !stopping) {
                         connectionState = State.FAILED
+                        stopTunnel()
                         stopSelf()
                     }
                 }
@@ -96,9 +99,18 @@ class FreeCastVpnService : VpnService() {
 
     override fun onDestroy() {
         destroyed = true
-        if (activeService === this && connectionState in setOf(State.CONNECTING, State.CONNECTED)) {
-            connectionState = State.STOPPING
-        }
+        if (activeService === this) stopTunnel()
+        super.onDestroy()
+    }
+
+    // Android binds to an established VpnService until its TUN is closed.
+    // Stopping the started service alone leaves that binding and the VPN active.
+    private fun stopTunnel() {
+        if (stopping) return
+        stopping = true
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        val finalState = if (connectionState == State.FAILED) State.FAILED else State.OFF
+        if (activeService === this) connectionState = State.STOPPING
         worker.execute {
             runCatching { command?.closeService() }
             runCatching { command?.close() }
@@ -107,19 +119,34 @@ class FreeCastVpnService : VpnService() {
             tun = null
             runCatching { platform.closeMonitor() }
             main.post {
+                started = false
+                stopping = false
                 if (activeService === this) {
                     activeService = null
-                    if (connectionState == State.STOPPING) connectionState = State.OFF
+                    val requestedSession = pendingConnection
+                    pendingConnection = null
+                    val app = application as FreeCastApplication
+                    if (app.hasVisibleActivities && requestedSession != null && app.foregroundSession === requestedSession) {
+                        requestConnection(app)
+                    } else {
+                        connectionState = if (app.foregroundSession == null) State.OFF else finalState
+                    }
                 }
             }
         }
-        super.onDestroy()
     }
 
-    override fun onRevoke() { stopSelf() }
+    override fun onRevoke() {
+        main.post {
+            if (activeService !== this) return@post
+            pendingConnection = null
+            stopTunnel()
+            stopSelf()
+        }
+    }
 
     private fun establishTunnel(options: TunOptions): Int {
-        check(!destroyed) { "VPN service stopped" }
+        check(!destroyed && !stopping) { "VPN service stopped" }
         check(prepare(this) == null) { "VPN permission missing" }
         val builder = Builder().setSession("FreeCast TV").setMtu(options.mtu)
         if (Build.VERSION.SDK_INT >= 29) builder.setMetered(false)
@@ -160,14 +187,24 @@ class FreeCastVpnService : VpnService() {
         private val main = Handler(Looper.getMainLooper())
         private val worker = Executors.newSingleThreadExecutor { Thread(it, "freecast-vpn") }
         private var activeService: FreeCastVpnService? = null
+        private var pendingConnection: Any? = null
         internal val state: String get() = connectionState.label
         @Volatile internal var connectionState = State.OFF
             private set
 
         @MainThread
         internal fun connect(context: Context) {
-            if (!(context.applicationContext as FreeCastApplication).hasVisibleActivities) return
+            val app = context.applicationContext as FreeCastApplication
+            if (!app.hasVisibleActivities) return
+            if (connectionState == State.STOPPING) {
+                pendingConnection = app.foregroundSession
+                return
+            }
             if (connectionState == State.CONNECTING || connectionState == State.CONNECTED) return
+            requestConnection(context)
+        }
+
+        private fun requestConnection(context: Context) {
             connectionState = State.CONNECTING
             try {
                 ContextCompat.startForegroundService(context, Intent(context, FreeCastVpnService::class.java))
@@ -179,8 +216,10 @@ class FreeCastVpnService : VpnService() {
 
         @MainThread
         internal fun disconnect(context: Context) {
+            pendingConnection = null
+            activeService?.stopTunnel()
             context.stopService(Intent(context, FreeCastVpnService::class.java))
-            if (activeService == null && connectionState == State.CONNECTING) connectionState = State.OFF
+            if (activeService == null) connectionState = State.OFF
         }
     }
 }

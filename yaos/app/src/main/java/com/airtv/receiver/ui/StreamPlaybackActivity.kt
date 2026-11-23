@@ -253,7 +253,8 @@ class StreamPlaybackActivity : Activity() {
 
     private fun awaitVpn() {
         val deadline = SystemClock.elapsedRealtime() + 15_000
-        while (FreeCastVpnService.connectionState == FreeCastVpnService.State.CONNECTING &&
+        val waiting = setOf(FreeCastVpnService.State.CONNECTING, FreeCastVpnService.State.STOPPING)
+        while (FreeCastVpnService.connectionState in waiting &&
             SystemClock.elapsedRealtime() < deadline) {
             Thread.sleep(100)
         }
