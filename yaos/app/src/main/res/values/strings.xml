@@ -135,4 +135,16 @@
     <string name="pairing_shortcut_show">Команда для Safari</string>
     <string name="pairing_shortcut_hide">Скрыть данные команды</string>
     <string name="pairing_shortcut_details">Для быстрой передачи из Safari настройте команду AirScreen.\nАдрес: %1$s\nКлюч: %2$s</string>
+    <string name="broadcast_position">%1$d / %2$d</string>
+    <string name="broadcast_match_premier">Матч! Премьер</string>
+    <string name="broadcast_tvcrate">TVCrate</string>
+    <string name="broadcast_match_tv">Матч ТВ</string>
+    <string name="broadcast_free_live">Бесплатный эфир</string>
+    <string name="broadcast_subscription">Подписка МАТЧ!</string>
+    <string name="broadcast_spartak">Матчи Спартака</string>
+    <string name="broadcast_match_tv_source">Сайт Матч ТВ</string>
+    <string name="broadcast_p2p_variant">Матч! Премьер · вариант %1$d</string>
+    <string name="broadcast_p2p_unverified">P2P · не проверен</string>
+    <string name="broadcast_ace">Ace Stream</string>
+    <string name="broadcast_ace_available">Ace Stream · доступен</string>
 </resources>

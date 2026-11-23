@@ -64,6 +64,7 @@ object TvChrome {
         title: String,
         subtitle: String?,
         content: View,
+        titleActions: View? = null,
         onBack: () -> Unit = activity::finish,
     ): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
@@ -72,7 +73,14 @@ object TvChrome {
         val side = dp(activity, if (resources.configuration.screenWidthDp < 800) 24 else 43)
         setPadding(side, dp(activity, if (compact) 16 else 22), side, dp(activity, if (compact) 16 else 24))
         addView(navigation(activity, section, onBack), LinearLayout.LayoutParams(-1, dp(activity, 46)))
-        addView(label(activity, title, if (compact) 28f else 34f), LinearLayout.LayoutParams(-1, -2).apply {
+        val heading = label(activity, title, if (compact) 28f else 34f)
+        val headingRow = if (titleActions == null) heading else LinearLayout(activity).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            isBaselineAligned = false
+            addView(heading, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(titleActions, LinearLayout.LayoutParams(-2, -2))
+        }
+        addView(headingRow, LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = dp(activity, if (compact) 12 else 22)
         })
         if (subtitle != null) addView(label(activity, subtitle, 16f, true))

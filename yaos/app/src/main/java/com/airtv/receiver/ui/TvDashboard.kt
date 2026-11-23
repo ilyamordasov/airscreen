@@ -12,18 +12,14 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import android.os.Build
-import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
-import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextClock
 import android.widget.TextView
-import androidx.core.view.doOnNextLayout
 import com.airtv.receiver.BuildConfig
 import com.airtv.receiver.R
 import kotlin.math.roundToInt
@@ -41,22 +37,6 @@ internal class TvDashboard(context: Context, open: (Destination) -> Unit) : Fram
 
     private val scale = minOf(resources.displayMetrics.widthPixels / 960f, resources.displayMetrics.heightPixels / 540f)
     private fun size(value: Int) = (scale * value).roundToInt()
-    private val strip = HorizontalScrollView(context).apply {
-        isHorizontalScrollBarEnabled = false
-        overScrollMode = OVER_SCROLL_NEVER
-        isFocusable = false
-        descendantFocusability = FOCUS_AFTER_DESCENDANTS
-    }
-    private val row = LinearLayout(context).apply {
-        gravity = Gravity.CENTER_VERTICAL
-        clipChildren = false
-        clipToPadding = false
-        setPadding(size(120), 0, size(120), 0)
-    }
-    private val indicators = LinearLayout(context).apply {
-        gravity = Gravity.CENTER
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-    }
     private val receiverText = text(context.getString(R.string.state_starting), 15, true).apply {
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
@@ -76,17 +56,8 @@ internal class TvDashboard(context: Context, open: (Destination) -> Unit) : Fram
             post { updateNetwork() }
         }
     }
-    private val cards = Destination.entries.map { destination ->
-        Tile(context, destination).apply {
-            id = generateViewId()
-            isFocusable = true
-            isClickable = true
-            if (Build.VERSION.SDK_INT >= 26) defaultFocusHighlightEnabled = false
-            setOnClickListener { open(destination) }
-        }
-    }
-    var selectedIndex = 0
-        private set
+    private val carousel = TvPosterCarousel(context, scale, size(120), showDots = true, open = open)
+    val selectedIndex: Int get() = carousel.selectedKey?.ordinal ?: 0
 
     init {
         addView(header(), LayoutParams(-1, size(46), Gravity.TOP).apply {
@@ -94,29 +65,25 @@ internal class TvDashboard(context: Context, open: (Destination) -> Unit) : Fram
             marginStart = size(43)
             marginEnd = size(33)
         })
-        strip.addView(row, LayoutParams(-2, -1))
-        addView(strip, LayoutParams(-1, size(364)).apply { topMargin = size(96) })
-        addView(indicators, LayoutParams(-1, size(18)).apply { topMargin = size(459) })
-        cards.forEachIndexed { index, card ->
-            row.addView(card, LinearLayout.LayoutParams(size(173), size(275)).apply { marginEnd = size(14) })
-            card.nextFocusLeftId = cards.getOrNull(index - 1)?.id ?: card.id
-            card.nextFocusRightId = cards.getOrNull(index + 1)?.id ?: card.id
-            card.nextFocusUpId = card.id
-            card.nextFocusDownId = card.id
-            card.setOnFocusChangeListener { _, focused -> if (focused) select(index, scroll = true) }
-            indicators.addView(View(context), LinearLayout.LayoutParams(size(20), size(5)).apply {
-                marginStart = size(3)
-                marginEnd = size(3)
-            })
-        }
-        select(0, scroll = false)
+        addView(carousel, LayoutParams(-1, size(TvPosterCarousel.DESIGN_HEIGHT)).apply { topMargin = size(96) })
+        carousel.replace(Destination.entries.map { destination ->
+            val description = if (destination == Destination.UPDATES) {
+                context.getString(destination.description, BuildConfig.VERSION_NAME)
+            } else context.getString(destination.description)
+            val tint = when (destination) {
+                Destination.RECEIVER, Destination.BROADCASTS -> TvGlassDrawable.PINK
+                Destination.VPN -> TvGlassDrawable.BLUE
+                else -> TvGlassDrawable.VIOLET
+            }
+            TvPosterCarousel.Poster(destination, context.getString(destination.title), description,
+                artwork = destination.artwork, symbol = destination.symbol, tint = tint,
+                heading = context.getString(R.string.dashboard_home).takeIf { destination == Destination.RECEIVER })
+        })
         updateNetwork()
     }
 
     fun focus(index: Int = selectedIndex) {
-        val target = index.coerceIn(cards.indices)
-        select(target, scroll = true)
-        cards[target].requestFocus()
+        carousel.focus(Destination.entries[index.coerceIn(Destination.entries.indices)])
     }
 
     fun showReceiverState(label: CharSequence, color: Int, busy: Boolean) {
@@ -128,7 +95,7 @@ internal class TvDashboard(context: Context, open: (Destination) -> Unit) : Fram
     }
 
     fun showAvailableUpdate(version: String) {
-        cards[Destination.UPDATES.ordinal].setDescription(context.getString(R.string.dashboard_new_version, version))
+        carousel.setDescription(Destination.UPDATES, context.getString(R.string.dashboard_new_version, version))
     }
 
     override fun onAttachedToWindow() {
@@ -154,24 +121,6 @@ internal class TvDashboard(context: Context, open: (Destination) -> Unit) : Fram
             physical?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true -> HeaderIcon.WIFI
             active != null || physical != null -> HeaderIcon.CONNECTED
             else -> HeaderIcon.OFFLINE
-        }
-    }
-
-    private fun select(index: Int, scroll: Boolean) {
-        selectedIndex = index
-        cards.forEachIndexed { position, card ->
-            val expanded = position == index
-            val params = card.layoutParams
-            params.width = size(if (expanded) 294 else 173)
-            params.height = size(if (expanded) 321 else 275)
-            card.layoutParams = params
-            card.expand(expanded)
-            indicators.getChildAt(position).background = rounded(
-                context.getColor(if (expanded) R.color.dashboard_indicator else R.color.border), 5,
-            )
-        }
-        if (scroll) row.doOnNextLayout {
-            if (selectedIndex == index) strip.smoothScrollTo(cards[index].left - row.paddingLeft, 0)
         }
     }
 
@@ -221,92 +170,6 @@ internal class TvDashboard(context: Context, open: (Destination) -> Unit) : Fram
     private fun rounded(color: Int, radius: Int) = GradientDrawable().apply {
         setColor(color)
         cornerRadius = size(radius).toFloat()
-    }
-
-    private inner class Tile(context: Context, private val destination: Destination) : FrameLayout(context) {
-        private val tint = when (destination) {
-            Destination.RECEIVER, Destination.BROADCASTS -> TvGlassDrawable.PINK
-            Destination.VPN -> TvGlassDrawable.BLUE
-            else -> TvGlassDrawable.VIOLET
-        }
-        private val normalGlass = TvGlassDrawable(scale, tint, radiusDp = 19)
-        private val focusedGlass = TvGlassDrawable(scale, tint, radiusDp = 26, focused = true)
-        private val title = text(context.getString(destination.title), 20, true).apply {
-            maxLines = 2
-            ellipsize = TextUtils.TruncateAt.END
-        }
-        private val description = text("", 14, muted = true).apply {
-            maxLines = 3
-            ellipsize = TextUtils.TruncateAt.END
-        }
-        private val heading = text(context.getString(R.string.dashboard_home), 15, muted = true)
-        private val arrow = text("→", 24, true).apply {
-            background = rounded(context.getColor(R.color.dashboard_arrow), 12)
-            gravity = Gravity.CENTER
-        }
-        private val artwork = if (destination.artwork != 0) {
-            ImageView(context).apply {
-                setImageResource(destination.artwork)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-            }
-        } else text(destination.symbol, 54, true).apply {
-            gravity = Gravity.CENTER
-            setTextColor(context.getColor(R.color.accent))
-            setShadowLayer(size(16).toFloat(), 0f, 0f, context.getColor(R.color.accent))
-        }
-        private var expanded = false
-
-        init {
-            addView(artwork)
-            addView(heading)
-            addView(title)
-            addView(description)
-            addView(arrow)
-            val summary = if (destination == Destination.UPDATES) {
-                context.getString(destination.description, BuildConfig.VERSION_NAME)
-            } else context.getString(destination.description)
-            setDescription(summary)
-        }
-
-        fun setDescription(value: String) {
-            description.text = value
-            contentDescription = "${title.text}. $value"
-        }
-
-        fun expand(value: Boolean) {
-            expanded = value
-            val receiver = destination == Destination.RECEIVER
-            val gap = if (expanded) 31 else 20
-            artwork.layoutParams = LayoutParams(-1, size(if (expanded) 136 else 113)).apply {
-                topMargin = size(if (expanded) 38 else 25)
-                marginStart = size(gap)
-                marginEnd = size(gap)
-            }
-            heading.visibility = if (receiver && expanded) VISIBLE else GONE
-            heading.layoutParams = position(gap, 176)
-            title.layoutParams = position(gap, if (expanded) (if (receiver) 198 else 183) else 151)
-            title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, size(if (expanded) 24 else 19).toFloat())
-            val descriptionTop = when {
-                receiver && expanded -> 232
-                expanded -> 220
-                receiver -> 195
-                else -> 184
-            }
-            description.layoutParams = position(gap, descriptionTop)
-            arrow.layoutParams = LayoutParams(size(if (expanded) 36 else 33), size(if (expanded) 36 else 33),
-                Gravity.BOTTOM or Gravity.END).apply {
-                marginEnd = size(17)
-                bottomMargin = size(17)
-            }
-            background = if (expanded) focusedGlass else normalGlass
-        }
-
-        private fun position(gap: Int, top: Int) = LayoutParams(-1, -2).apply {
-            marginStart = size(gap)
-            marginEnd = size(gap)
-            topMargin = size(top)
-        }
-
     }
 
     private enum class HeaderIcon(val label: Int) {

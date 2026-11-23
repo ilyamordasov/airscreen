@@ -7,7 +7,8 @@ import android.os.Bundle
 import android.text.Html
 import android.text.Spanned
 import android.text.style.URLSpan
-import android.widget.Button
+import android.view.Gravity
+import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -20,7 +21,7 @@ import kotlin.math.roundToInt
 
 /** TV-side directory of football broadcasts and channel pages. */
 class BroadcastsActivity : Activity() {
-    private lateinit var tiles: LinearLayout
+    private lateinit var carousel: TvPosterCarousel<String>
     private lateinit var status: TextView
     private lateinit var aceStatus: TextView
     private lateinit var directoryStatus: TextView
@@ -28,27 +29,60 @@ class BroadcastsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val content = layoutInflater.inflate(R.layout.activity_broadcasts, null, false)
+        val share = TvChrome.action(this, getString(R.string.dashboard_send_link)).apply {
+            id = View.generateViewId()
+            setOnClickListener { startActivity(Intent(this@BroadcastsActivity, LinkShareActivity::class.java)) }
+        }
+        val refresh = TvChrome.action(this, getString(R.string.action_refresh)).apply {
+            id = View.generateViewId()
+            setOnClickListener { load() }
+        }
+        val actions = LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(share)
+            addView(refresh, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })
+        }
+        val metrics = resources.displayMetrics
+        val scale = minOf(metrics.widthPixels / 960f, metrics.heightPixels / 540f)
+        carousel = TvPosterCarousel(this, scale, dp(4), showDots = false, focusUpId = share.id, open = ::openBroadcast)
+        status = TvChrome.label(this, "", 14f, muted = true)
+        aceStatus = TvChrome.label(this, "", 13f, muted = true)
+        directoryStatus = TvChrome.label(this, "", 13f, muted = true)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(carousel, LinearLayout.LayoutParams(-1, 0, 1f))
+            addView(status, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+            addView(LinearLayout(this@BroadcastsActivity).apply {
+                isBaselineAligned = false
+                addView(aceStatus, LinearLayout.LayoutParams(0, -2, 1f))
+                addView(directoryStatus, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(16) })
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+        }
+        carousel.onSelectionChanged = { id ->
+            share.nextFocusDownId = id
+            refresh.nextFocusDownId = id
+        }
         setContentView(TvChrome.page(this, TvChrome.Section.BROADCASTS,
-            getString(R.string.dashboard_broadcasts), null, content))
-        tiles = findViewById(R.id.broadcasts_tiles)
-        status = findViewById(R.id.broadcasts_status)
-        aceStatus = findViewById(R.id.ace_status)
-        directoryStatus = findViewById(R.id.directory_status)
-        findViewById<Button>(R.id.broadcasts_refresh).setOnClickListener { load() }
+            getString(R.string.dashboard_broadcasts), null, content, titleActions = actions))
         load()
     }
 
     private fun load() {
         val generation = ++loadGeneration
-        tiles.removeAllViews()
-        addTile("Передать ссылку с телефона", "freecast:share")
-        addTile("Матч ТВ — бесплатный прямой эфир", "https://matchtv.ru/video/channel/matchtv")
-        addTile("Матч Премьер — по подписке (приложение МАТЧ!)", "https://matchtv.ru/match-app")
-        val tvCrate = addTile("Матч! Премьер · TVCrate", TvCrateResolver.MATCH_PREMIER_URL)
-        if (generation == 1) tvCrate.requestFocus()
-        addTile("Все трансляции Спартака", CATALOG_URL)
-        status.text = "Обновляем список матчей…"
+        carousel.replace(listOf(
+            TvPosterCarousel.Poster(TvCrateResolver.MATCH_PREMIER_URL, getString(R.string.broadcast_match_premier),
+                getString(R.string.broadcast_tvcrate), R.drawable.dashboard_broadcasts, tint = TvGlassDrawable.PINK,
+                actionSymbol = "▶"),
+            TvPosterCarousel.Poster(MATCH_TV_URL, getString(R.string.broadcast_match_tv),
+                getString(R.string.broadcast_free_live), R.drawable.catalog_live, tint = TvGlassDrawable.BLUE,
+                actionSymbol = "▶"),
+            TvPosterCarousel.Poster(MATCH_APP_URL, getString(R.string.broadcast_match_premier),
+                getString(R.string.broadcast_subscription), R.drawable.dashboard_broadcasts),
+            TvPosterCarousel.Poster(CATALOG_URL, getString(R.string.broadcast_spartak),
+                getString(R.string.broadcast_match_tv_source), R.drawable.catalog_football, tint = TvGlassDrawable.PINK),
+        ))
+        if (generation == 1) carousel.focus(TvCrateResolver.MATCH_PREMIER_URL)
+        status.text = "Загружаем матчи с сайта Матч ТВ…"
         aceStatus.text = "Ищем P2P-эфиры через Ace Stream Engine…"
         directoryStatus.text = "Обновляем P2P-каталог…"
         Thread {
@@ -68,11 +102,14 @@ class BroadcastsActivity : Activity() {
                 if (isFinishing || isDestroyed || generation != loadGeneration) return@runOnUiThread
                 result.onSuccess { html ->
                     val links = extractMatchLinks(html)
-                    links.forEach { addTile(it.first, it.second) }
-                    status.text = if (links.isEmpty()) "Список матчей недоступен. Откройте сайт трансляций." else
+                    links.forEach { (title, url) ->
+                        carousel.append(TvPosterCarousel.Poster(url, title, getString(R.string.broadcast_match_tv_source),
+                            R.drawable.catalog_football, tint = TvGlassDrawable.PINK))
+                    }
+                    status.text = if (links.isEmpty()) "Дополнительные матчи с сайта Матч ТВ недоступны." else
                         "Матчи и записи — источник: Матч ТВ"
                 }.onFailure {
-                    status.text = "Не удалось обновить список. Проверьте сеть или откройте сайт трансляций."
+                    status.text = "Не удалось загрузить дополнительные матчи с сайта Матч ТВ."
                 }
             }
         }.start()
@@ -105,8 +142,8 @@ class BroadcastsActivity : Activity() {
                 if (isFinishing || isDestroyed || generation != loadGeneration) return@runOnUiThread
                 result.onSuccess { ids ->
                     ids.forEachIndexed { index, id ->
-                        addTile("P2P · Матч Премьер · вариант ${index + 1} (не проверен)",
-                            "acestream:?content_id=$id")
+                        addP2pPoster("acestream:?content_id=$id",
+                            getString(R.string.broadcast_p2p_variant, index + 1), getString(R.string.broadcast_p2p_unverified))
                     }
                     directoryStatus.text = if (ids.isEmpty()) "P2P-каталог не содержит эфиров." else
                         "P2P-каталог: ${ids.size} вариантов, работоспособность не проверена"
@@ -152,7 +189,8 @@ class BroadcastsActivity : Activity() {
                 if (isFinishing || isDestroyed || generation != loadGeneration) return@runOnUiThread
                 result.onSuccess { streams ->
                     streams.forEach { (name, hash, availability) ->
-                        addAceTile("Ace Stream · $name${if (availability == 2) " · доступен" else ""}", hash)
+                        val source = if (availability == 2) R.string.broadcast_ace_available else R.string.broadcast_ace
+                        addP2pPoster("acestream:?infohash=$hash", name, getString(source))
                     }
                     aceStatus.text = if (streams.isEmpty()) "Ace Stream: эфиры «Спартака» не найдены." else
                         "Ace Stream: ${streams.size} P2P-эфиров"
@@ -163,8 +201,9 @@ class BroadcastsActivity : Activity() {
         }.start()
     }
 
-    private fun addAceTile(title: String, infohash: String) {
-        addTile(title, "acestream:?infohash=$infohash")
+    private fun addP2pPoster(url: String, title: String, description: String) {
+        carousel.append(TvPosterCarousel.Poster(url, title.ifBlank { getString(R.string.broadcast_match_premier) },
+            description, R.drawable.catalog_live, tint = TvGlassDrawable.BLUE, actionSymbol = "▶"))
     }
 
     private fun startAce(infohash: String) {
@@ -217,45 +256,21 @@ class BroadcastsActivity : Activity() {
             .take(12)
     }
 
-    private fun addTile(title: String, url: String): Button {
-        val tint = if (url == TvCrateResolver.MATCH_PREMIER_URL) TvGlassDrawable.PINK else TvGlassDrawable.VIOLET
-        val button = TvChrome.glassTile(this, title, tint).apply {
-            textSize = if (resources.configuration.screenHeightDp < 440) 17f else 19f
-            gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.START
-            setPadding(dp(24), dp(12), dp(24), dp(12))
-            setOnClickListener {
-                if (url == "freecast:share") {
-                    startActivity(Intent(this@BroadcastsActivity, LinkShareActivity::class.java))
-                    return@setOnClickListener
-                }
-                if (url.startsWith("acestream:")) {
-                    if (url.contains("content_id=")) launchAceContentId(url.substringAfter("content_id="))
-                    else startAce(url.substringAfter("infohash="))
-                } else {
-                    startActivity(Intent(this@BroadcastsActivity, BroadcastWebActivity::class.java)
-                        .putExtra(BroadcastWebActivity.EXTRA_URL, url))
-                }
-            }
-        }
-        val compact = resources.configuration.screenHeightDp < 440
-        val row = if (tiles.childCount > 0 && (tiles.getChildAt(tiles.childCount - 1) as LinearLayout).childCount < 2) {
-            tiles.getChildAt(tiles.childCount - 1) as LinearLayout
+    private fun openBroadcast(url: String) {
+        if (url.startsWith("acestream:")) {
+            if (url.contains("content_id=")) launchAceContentId(url.substringAfter("content_id="))
+            else startAce(url.substringAfter("infohash="))
         } else {
-            LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                isBaselineAligned = false
-                tiles.addView(this, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(if (compact) 8 else 12) })
-            }
+            startActivity(Intent(this, BroadcastWebActivity::class.java)
+                .putExtra(BroadcastWebActivity.EXTRA_URL, url))
         }
-        row.addView(button, LinearLayout.LayoutParams(0, dp(if (compact) 64 else 78), 1f).apply {
-            if (row.childCount > 0) marginStart = dp(12)
-        })
-        return button
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
     private companion object {
+        const val MATCH_TV_URL = "https://matchtv.ru/video/channel/matchtv"
+        const val MATCH_APP_URL = "https://matchtv.ru/match-app"
         const val CATALOG_URL = "https://matchtv.ru/football/club/spartak-moscow/broadcasts"
         const val P2P_DIRECTORY_URL = "https://acestreamid.com/channel/match-premyer"
     }
