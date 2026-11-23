@@ -22,7 +22,7 @@ object DeviceIdentity {
 
     fun serviceName(deviceName: String, fallback: String): String {
         fun clean(value: String) = value.filterNot { it.isISOControl() }.replace('.', ' ').replace('\\', ' ').trim()
-        val name = clean(deviceName).ifEmpty { clean(fallback).ifEmpty { "FreeCast TV" } }
+        val name = clean(deviceName).ifEmpty { clean(fallback).ifEmpty { "AirScreen" } }
         val result = StringBuilder()
         var index = 0
         var bytes = 0

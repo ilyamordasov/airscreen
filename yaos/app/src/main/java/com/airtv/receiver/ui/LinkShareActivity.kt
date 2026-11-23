@@ -45,7 +45,7 @@ class LinkShareActivity : Activity() {
         val instructionsPanel = TvChrome.panel(this)
         instructionsPanel.addView(instructions)
         row.addView(instructionsPanel, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(24) })
-        setContentView(TvChrome.page(this, TvChrome.Section.BROADCASTS, "FREECAST • IPHONE",
+        setContentView(TvChrome.page(this, TvChrome.Section.BROADCASTS, "AIRSCREEN • IPHONE",
             "Передать ссылку", "Откройте страницу с видео на телевизоре", root))
 
         val address = localAddress()
@@ -68,7 +68,7 @@ class LinkShareActivity : Activity() {
             server = next
             qr.setImageBitmap(qrBitmap(url))
             status.text = "Откройте камеру iPhone и наведите её на QR-код."
-            instructions.text = "Быстрая передача из Safari: один раз настройте команду «На FreeCast TV» в iOS Shortcuts.\n" +
+            instructions.text = "Быстрая передача из Safari: один раз настройте команду для AirScreen в iOS Shortcuts.\n" +
                 "Адрес: http://$address:${RemoteCommandServer.PORT}/command\n" +
                 "Ключ: ${PairingSecret.get(this)}\n\n" +
                 "Без команды: скопируйте ссылку в Safari, откройте QR-код и введите код $code."

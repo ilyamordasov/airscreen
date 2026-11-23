@@ -21,5 +21,5 @@ data class ReceiverSettings(
         return AdvertisedDisplay(if (safe.height == 720) 1280 else 1920, safe.height, safe.fps)
     }
 
-    companion object { const val DEFAULT_NAME = "FreeCast TV" }
+    companion object { const val DEFAULT_NAME = "AirScreen" }
 }

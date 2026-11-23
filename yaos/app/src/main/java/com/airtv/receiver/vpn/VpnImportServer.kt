@@ -45,8 +45,8 @@ class VpnImportServer(private val token: String, private val onImport: (String) 
 
     private fun html(content: String) = """
         <!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>FreeCast VPN</title><style>body{font:18px system-ui;max-width:34rem;margin:2rem auto;padding:1rem;background:#101827;color:white}input,button{box-sizing:border-box;width:100%;padding:1rem;margin:.5rem 0;border-radius:.6rem;font:inherit}button{background:#49b9c9;color:#071217;border:0}</style>
-        <h1>FreeCast VPN</h1><p>$content</p><form method="post" action="/import">
+        <title>AirScreen VPN</title><style>body{font:18px system-ui;max-width:34rem;margin:2rem auto;padding:1rem;background:#101827;color:white}input,button{box-sizing:border-box;width:100%;padding:1rem;margin:.5rem 0;border-radius:.6rem;font:inherit}button{background:#49b9c9;color:#071217;border:0}</style>
+        <h1>AirScreen VPN</h1><p>$content</p><form method="post" action="/import">
         <label>Ссылка подписки или VLESS<input name="profile" type="text" maxlength="8192" required autocomplete="off"></label>
         <label>Код на ТВ<input name="token" type="text" required autocomplete="off"></label>
         <button type="submit">Передать на ТВ</button></form></html>

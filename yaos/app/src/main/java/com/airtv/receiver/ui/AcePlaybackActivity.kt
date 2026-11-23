@@ -86,7 +86,7 @@ class AcePlaybackActivity : Activity() {
                     video.setVideoURI(Uri.parse(streamUrl))
                     video.requestFocus()
                 }.onFailure {
-                    status.text = "Не удалось открыть эфир в FreeCast TV. Запустите Ace Stream Engine: ${it.localizedMessage.orEmpty()}"
+                    status.text = "Не удалось открыть эфир в AirScreen. Запустите Ace Stream Engine: ${it.localizedMessage.orEmpty()}"
                 }
             }
         }.start()

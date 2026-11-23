@@ -97,8 +97,8 @@ class VpnActivity : Activity() {
         }
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(12) })
         renderProxies(VpnProfileStore.proxies(this))
-        setContentView(TvChrome.page(this, TvChrome.Section.VPN, "FREECAST • СЕТЬ", "VPN",
-            "Подключение только для FreeCast TV", root))
+        setContentView(TvChrome.page(this, TvChrome.Section.VPN, "AIRSCREEN • СЕТЬ", "VPN",
+            "Подключение только для AirScreen", root))
 
         val address = localAddress()
         if (address == null) {

@@ -76,6 +76,6 @@ class DeviceIdentityTest {
     fun `control characters cannot enter service labels`() {
         assertEquals("TV room", DeviceIdentity.serviceName("TV.room", "Fallback"))
         assertEquals("TV", DeviceIdentity.serviceName(" T\u0000V\n ", "Fallback"))
-        assertEquals("FreeCast TV", DeviceIdentity.serviceName("\u0000\r", " "))
+        assertEquals("AirScreen", DeviceIdentity.serviceName("\u0000\r", " "))
     }
 }

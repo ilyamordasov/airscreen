@@ -63,7 +63,7 @@ class UpdateActivity : Activity() {
         panel.addView(progress, LinearLayout.LayoutParams(-1, dp(20)).apply { topMargin = dp(24) })
         root.addView(panel, LinearLayout.LayoutParams(-1, -2))
         root.addView(action, LinearLayout.LayoutParams(dp(260), dp(60)).apply { topMargin = dp(20) })
-        setContentView(TvChrome.page(this, TvChrome.Section.UPDATES, "FREECAST • ПРИЛОЖЕНИЕ",
+        setContentView(TvChrome.page(this, TvChrome.Section.UPDATES, "AIRSCREEN • ПРИЛОЖЕНИЕ",
             "Обновления", "Установка новой версии по сети", root))
         action.requestFocus()
         checkLatest()
@@ -200,7 +200,7 @@ class UpdateActivity : Activity() {
         val uri = FileProvider.getUriForFile(this, "$packageName.updates", file)
         val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")
-            clipData = ClipData.newRawUri("FreeCast TV", uri)
+            clipData = ClipData.newRawUri(getString(R.string.app_name), uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         try {

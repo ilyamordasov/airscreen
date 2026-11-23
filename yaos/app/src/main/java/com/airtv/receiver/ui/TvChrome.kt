@@ -6,6 +6,7 @@ import android.graphics.Typeface
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.airtv.receiver.R
@@ -48,7 +49,18 @@ object TvChrome {
         rail.orientation = LinearLayout.VERTICAL
         rail.setBackgroundResource(R.drawable.bg_rail)
         rail.setPadding(dp(activity, 16), dp(activity, 28), dp(activity, 16), dp(activity, 22))
-        rail.addView(label(activity, "FreeCast", 24f).apply { setTextColor(activity.getColor(R.color.accent)) })
+        rail.addView(LinearLayout(activity).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(ImageView(activity).apply {
+                setImageResource(R.drawable.ic_airscreen)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+            }, LinearLayout.LayoutParams(dp(activity, 34), dp(activity, 34)).apply {
+                marginEnd = dp(activity, 10)
+            })
+            addView(label(activity, activity.getString(R.string.app_name), 21f).apply {
+                setTextColor(activity.getColor(R.color.accent))
+            })
+        })
         rail.addView(label(activity, "TV  •  ПУЛЬТ", 11f, true), LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = dp(activity, 2); bottomMargin = dp(activity, 32)
         })

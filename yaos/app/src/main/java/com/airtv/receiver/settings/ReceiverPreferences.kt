@@ -9,9 +9,9 @@ object ReceiverPreferences {
     fun load(context: Context): ReceiverSettings {
         val preferences = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         return runCatching {
+            val savedName = preferences.getString("name", null)
             ReceiverSettings(
-                name = preferences.getString("name", ReceiverSettings.DEFAULT_NAME)
-                    ?: ReceiverSettings.DEFAULT_NAME,
+                name = savedName?.takeUnless { it == "FreeCast TV" } ?: ReceiverSettings.DEFAULT_NAME,
                 height = preferences.getInt("height", 1080),
                 fps = preferences.getInt("fps", 30),
             ).normalized()

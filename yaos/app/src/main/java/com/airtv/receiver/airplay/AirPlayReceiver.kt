@@ -264,7 +264,7 @@ class AirPlayReceiver(private val context: Context) : AirPlayCallbacks {
         }.getOrDefault("Не удалось получить список")
         val profile = advertisedDisplay
         return """
-            FreeCast TV ${BuildConfig.VERSION_NAME}
+            AirScreen ${BuildConfig.VERSION_NAME}
             Устройство: ${Build.MANUFACTURER} ${Build.MODEL}
             Android ${Build.VERSION.RELEASE}; API ${Build.VERSION.SDK_INT}
             Процессор: ${Build.SUPPORTED_ABIS.joinToString()}

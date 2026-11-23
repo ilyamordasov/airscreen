@@ -148,7 +148,7 @@ class FreeCastVpnService : VpnService() {
     private fun establishTunnel(options: TunOptions): Int {
         check(!destroyed && !stopping) { "VPN service stopped" }
         check(prepare(this) == null) { "VPN permission missing" }
-        val builder = Builder().setSession("FreeCast TV").setMtu(options.mtu)
+        val builder = Builder().setSession(getString(R.string.app_name)).setMtu(options.mtu)
         if (Build.VERSION.SDK_INT >= 29) builder.setMetered(false)
         val addresses = options.inet4Address
         while (addresses.hasNext()) addresses.next().let { builder.addAddress(it.address(), it.prefix()) }
@@ -167,7 +167,7 @@ class FreeCastVpnService : VpnService() {
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             getSystemService(NotificationManager::class.java).createNotificationChannel(
-                NotificationChannel("freecast_vpn", "FreeCast VPN", NotificationManager.IMPORTANCE_LOW),
+                NotificationChannel("freecast_vpn", getString(R.string.vpn_name), NotificationManager.IMPORTANCE_LOW),
             )
         }
     }
@@ -177,7 +177,7 @@ class FreeCastVpnService : VpnService() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val open = PendingIntent.getActivity(this, 0, openMain, PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, "freecast_vpn")
-            .setSmallIcon(R.drawable.ic_freecast).setContentTitle("FreeCast VPN")
+            .setSmallIcon(R.drawable.ic_freecast).setContentTitle(getString(R.string.vpn_name))
             .setContentText("Подключение VLESS активно").setContentIntent(open).setOngoing(true).build()
     }
 

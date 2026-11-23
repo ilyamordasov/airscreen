@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">FreeCast TV</string>
+    <string name="app_name">AirScreen</string>
+    <string name="vpn_name">AirScreen VPN</string>
     <string name="app_tagline">ПОВТОР ЭКРАНА IPHONE</string>
     <string name="main_heading">С телефона — на большой экран</string>
     <string name="receiver_name_label">ИМЯ В «ПОВТОРЕ ЭКРАНА»</string>
@@ -52,7 +53,7 @@
     <string name="action_broadcasts">Трансляции</string>
     <string name="action_updates">Обновление</string>
     <string name="update_badge">Обновить до %1$s</string>
-    <string name="update_title">Обновление FreeCast TV</string>
+    <string name="update_title">Обновление AirScreen</string>
     <string name="update_checking">Проверяем новую версию…</string>
     <string name="update_no_release">Опубликованных версий пока нет.</string>
     <string name="update_current">Установлена последняя версия: %1$s</string>
@@ -64,7 +65,7 @@
     <string name="update_downloading">Скачиваем и проверяем APK…</string>
     <string name="update_ready">APK проверен. Подтвердите установку на следующем экране.</string>
     <string name="update_install">Открыть установщик</string>
-    <string name="update_allow_install">Разрешите FreeCast TV установку приложений, затем вернитесь сюда.</string>
+    <string name="update_allow_install">Разрешите AirScreen установку приложений, затем вернитесь сюда.</string>
     <string name="update_installer_missing">На телевизоре не найден установщик APK.</string>
     <string name="update_error">Не удалось обновить: %1$s</string>
     <string name="action_resume">К трансляции</string>
@@ -97,9 +98,9 @@
     <string name="diagnostics_abi">Архитектура: %1$s</string>
     <string name="diagnostics_failed">Не удалось получить сведения: %1$s</string>
     <string name="diagnostics_limitations">«Повтор экрана» работает отдельно. HLS-видео через кнопку AirPlay экспериментально поддерживается для YouTube; Safari и другие приложения пока не проверены. Защищённое видео не передаётся.</string>
-    <string name="diagnostics_clip_label">Диагностика FreeCast TV</string>
+    <string name="diagnostics_clip_label">Диагностика AirScreen</string>
     <string name="diagnostics_copied">Диагностика скопирована</string>
-    <string name="open_source_credit">FreeCast TV · На основе AirTV и UxPlay · GPLv3</string>
-    <string name="exit_title">Выйти из FreeCast TV?</string>
+    <string name="open_source_credit">AirScreen · На основе AirTV и UxPlay · GPLv3</string>
+    <string name="exit_title">Выйти из AirScreen?</string>
     <string name="exit_message">Текущая трансляция остановится. Для нового подключения запустите приложение снова.</string>
 </resources>
