@@ -54,7 +54,7 @@ class FreeCastVpnService : VpnService() {
         }
         createChannel()
         startForeground(7, notification())
-        if (!(application as FreeCastApplication).foregroundSession) {
+        if ((application as FreeCastApplication).foregroundSession == null) {
             stopSelf()
             return START_NOT_STICKY
         }

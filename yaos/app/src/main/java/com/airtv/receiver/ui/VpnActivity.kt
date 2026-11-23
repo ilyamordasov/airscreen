@@ -18,6 +18,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import com.airtv.receiver.FreeCastApplication
 import com.airtv.receiver.vpn.CheckedProxy
 import com.airtv.receiver.vpn.FreeCastVpnService
 import com.airtv.receiver.vpn.ProxyScanner
@@ -170,6 +171,8 @@ class VpnActivity : Activity() {
             return
         }
         val restoreVpn = isVpnRunning()
+        val app = application as FreeCastApplication
+        val session = app.foregroundSession
         if (restoreVpn) stopVpn()
         setBusy(true)
         importStatus.text = "Обновляем подписку…"
@@ -199,7 +202,8 @@ class VpnActivity : Activity() {
                     }
                     setBusy(false)
                 }
-                if (restoreVpn && VpnService.prepare(applicationContext) == null) {
+                if (restoreVpn && session != null && app.foregroundSession === session &&
+                    VpnService.prepare(applicationContext) == null) {
                     FreeCastVpnService.connect(applicationContext)
                 }
             }
@@ -226,6 +230,8 @@ class VpnActivity : Activity() {
             return
         }
         val restoreVpn = isVpnRunning()
+        val app = application as FreeCastApplication
+        val session = app.foregroundSession
         if (restoreVpn) stopVpn()
         profileStatus.text = profileLabel()
         renderProxies(proxies)
@@ -237,7 +243,8 @@ class VpnActivity : Activity() {
                 handler.post {
                     if (!isDestroyed) {
                         setBusy(false)
-                        if (stopped) connect() else importStatus.text = "Повторите подключение VPN."
+                        if (stopped && session != null && app.foregroundSession === session) connect()
+                        if (!stopped) importStatus.text = "Повторите подключение VPN."
                     }
                 }
             }

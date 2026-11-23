@@ -18,11 +18,11 @@ class FreeCastApplication : Application(), Application.ActivityLifecycleCallback
     private val main = Handler(Looper.getMainLooper())
     private var startedActivities = 0
     internal val hasVisibleActivities: Boolean get() = startedActivities > 0
-    internal var foregroundSession = false
+    internal var foregroundSession: Any? = null
         private set
     private val stopServices = Runnable {
         if (startedActivities != 0) return@Runnable
-        foregroundSession = false
+        foregroundSession = null
         AirPlayService.stop(this)
         FreeCastVpnService.disconnect(this)
     }
@@ -60,8 +60,8 @@ class FreeCastApplication : Application(), Application.ActivityLifecycleCallback
     override fun onActivityStarted(activity: Activity) {
         startedActivities++
         main.removeCallbacks(stopServices)
-        if (foregroundSession) return
-        foregroundSession = true
+        if (foregroundSession != null) return
+        foregroundSession = Any()
         runCatching { AirPlayService.start(this) }
             .onFailure { Log.w("FreeCastApplication", "Could not start AirPlay", it) }
     }

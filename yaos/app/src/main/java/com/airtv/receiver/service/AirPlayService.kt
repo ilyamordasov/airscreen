@@ -110,7 +110,7 @@ class AirPlayService : Service() {
             startForeground(NOTIFICATION_ID, buildNotification(receiver.state))
             foreground = true
         }
-        if (!(application as FreeCastApplication).foregroundSession) {
+        if ((application as FreeCastApplication).foregroundSession == null) {
             stopSelf()
             return START_NOT_STICKY
         }
