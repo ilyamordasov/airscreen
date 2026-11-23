@@ -25,6 +25,34 @@ class VlessProfileTest {
         assertThrows(IllegalArgumentException::class.java) { VlessProfile.fromSubscription("not a subscription") }
     }
 
+    @Test fun parsesXraySubscriptionAndSkipsUnsupportedOutbounds() {
+        val config = """
+            {
+              "remarks": "Test",
+              "outbounds": [
+                {"protocol": "freedom"},
+                {
+                  "protocol": "vless",
+                  "streamSettings": {"network": "xhttp", "security": "tls"},
+                  "settings": {"vnext": [{"address": "unsupported.example", "port": 443,
+                    "users": [{"id": "11111111-1111-4111-8111-111111111111"}]}]}
+                },
+                {
+                  "protocol": "vless",
+                  "streamSettings": {"network": "tcp", "security": "reality", "realitySettings": {
+                    "serverName": "cdn.example.com", "publicKey": "publicKey", "shortId": "1234"
+                  }},
+                  "settings": {"vnext": [{"address": "example.com", "port": 443,
+                    "users": [{"id": "11111111-1111-4111-8111-111111111111", "encryption": "none"}]}]}
+                }
+              ]
+            }
+        """.trimIndent()
+        val expected = VlessProfile.parse(link)
+        assertEquals(expected, VlessProfile.fromSubscription(config))
+        assertEquals(expected, VlessProfile.fromSubscription("[{},$config]"))
+    }
+
     @Test fun enablesSocketProtectionForTheTunnel() {
         val config = JSONObject(BoxConfig.create(VlessProfile.parse(link)))
         assertTrue(config.getJSONObject("route").optBoolean("auto_detect_interface"))

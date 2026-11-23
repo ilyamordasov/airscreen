@@ -1,7 +1,11 @@
 package com.airtv.receiver.vpn
 
+import org.json.JSONArray
+import org.json.JSONObject
+import org.json.JSONTokener
 import java.net.URI
 import java.net.URLDecoder
+import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 
@@ -25,9 +29,12 @@ data class VlessProfile(
     override fun toString(): String = "VlessProfile(name=$name, server=redacted)"
 
     companion object {
+        internal const val MAX_SUBSCRIPTION_BYTES = 2 * 1024 * 1024
+
         fun fromSubscription(content: String): VlessProfile {
-            require(content.length <= 1_000_000) { "Подписка слишком большая" }
-            val plain = content.trim()
+            require(content.length <= MAX_SUBSCRIPTION_BYTES) { "Подписка слишком большая" }
+            val plain = content.trim().removePrefix("\uFEFF").trimStart()
+            if (plain.startsWith('[') || plain.startsWith('{')) return fromXraySubscription(plain)
             val candidate = if (plain.contains("vless://")) plain else {
                 runCatching {
                     val compact = plain.filterNot(Char::isWhitespace)
@@ -38,6 +45,59 @@ data class VlessProfile(
                 ?: throw IllegalArgumentException("Подписка не содержит VLESS-ссылок")
             return parse(link)
         }
+
+        private fun fromXraySubscription(content: String): VlessProfile {
+            val document = runCatching { JSONTokener(content).nextValue() }.getOrNull()
+            val configs = when (document) {
+                is JSONArray -> document.objects()
+                is JSONObject -> sequenceOf(document)
+                else -> emptySequence()
+            }
+            return configs.flatMap { config ->
+                config.optJSONArray("outbounds").objects().flatMap { outbound ->
+                    xrayProfiles(outbound, config.optString("remarks"))
+                }
+            }.firstOrNull() ?: throw IllegalArgumentException("Подписка не содержит совместимых профилей VLESS")
+        }
+
+        private fun xrayProfiles(outbound: JSONObject, remarks: String): Sequence<VlessProfile> {
+            val stream = outbound.optJSONObject("streamSettings")
+            if (outbound.optString("protocol") != "vless" || outbound.has("proxySettings") ||
+                outbound.has("sendThrough") || stream?.optJSONObject("sockopt")?.has("dialerProxy") == true) {
+                return emptySequence()
+            }
+            val security = stream?.optString("security", "none") ?: "none"
+            val tls = stream?.optJSONObject("${security}Settings")
+            val ws = stream?.optJSONObject("wsSettings")
+            val network = stream?.optString("network", "tcp") ?: "tcp"
+            return outbound.optJSONObject("settings")?.optJSONArray("vnext").objects().flatMap { server ->
+                server.optJSONArray("users").objects().mapNotNull { user ->
+                    runCatching {
+                        val base = URI("vless", user.getString("id"), server.getString("address"),
+                            server.getInt("port"), null, null, null).toASCIIString()
+                        val query = mapOf(
+                            "type" to if (network == "raw") "tcp" else network,
+                            "security" to security,
+                            "encryption" to user.optString("encryption"),
+                            "flow" to user.optString("flow"),
+                            "sni" to tls?.optString("serverName"),
+                            "fp" to tls?.optString("fingerprint"),
+                            "pbk" to tls?.optString("publicKey"),
+                            "sid" to tls?.optString("shortId"),
+                            "path" to ws?.optString("path"),
+                            "host" to ws?.optJSONObject("headers")?.optString("Host"),
+                        ).filterValues { !it.isNullOrBlank() }
+                            .entries.joinToString("&") { (key, value) -> "$key=${encode(value.orEmpty())}" }
+                        parse("$base?$query#${encode(remarks)}")
+                    }.getOrNull()
+                }
+            }
+        }
+
+        private fun JSONArray?.objects(): Sequence<JSONObject> =
+            (0 until (this?.length() ?: 0)).asSequence().mapNotNull { this?.optJSONObject(it) }
+
+        private fun encode(value: String): String = URLEncoder.encode(value, "UTF-8").replace("+", "%20")
 
         fun parse(link: String): VlessProfile {
             require(link.length <= 8192) { "VLESS-ссылка слишком длинная" }

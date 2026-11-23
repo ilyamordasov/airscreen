@@ -109,8 +109,7 @@ class VpnActivity : Activity() {
         runOnUiThread { importStatus.text = "Загружаем профиль…" }
         Thread {
             try {
-                val content = if (value.startsWith("vless://")) value else download(value)
-                val profile = VlessProfile.fromSubscription(content)
+                val profile = if (value.startsWith("vless://")) VlessProfile.parse(value) else downloadProfile(value)
                 stopService(Intent(this, FreeCastVpnService::class.java))
                 VpnProfileStore.save(this, profile)
                 runOnUiThread {
@@ -122,7 +121,8 @@ class VpnActivity : Activity() {
             } catch (error: Exception) {
                 runOnUiThread {
                     if (!isDestroyed) importStatus.text = when (error.message) {
-                        "Подписка не содержит VLESS-ссылок" -> "Подписка не содержит обычных VLESS-ссылок. Нужен другой формат импорта."
+                        "Подписка не содержит VLESS-ссылок", "Подписка не содержит совместимых профилей VLESS" ->
+                            "Подписка не содержит совместимых профилей VLESS."
                         "Подписка слишком большая" -> "Подписка слишком большая."
                         else -> "Не удалось импортировать профиль. Проверьте ссылку и формат."
                     }
@@ -131,12 +131,20 @@ class VpnActivity : Activity() {
         }.start()
     }
 
-    private fun download(value: String): String {
+    private fun downloadProfile(value: String): VlessProfile = try {
+        VlessProfile.fromSubscription(download(value, userAgent = "v2rayNG/1.10.23"))
+    } catch (_: IllegalArgumentException) {
+        VlessProfile.fromSubscription(download(value))
+    }
+
+    private fun download(value: String, userAgent: String? = null): String {
         val connection = (URL(value).openConnection() as HttpsURLConnection).apply {
             connectTimeout = 10_000
             readTimeout = 15_000
             instanceFollowRedirects = false
-            setRequestProperty("Accept", "text/plain, */*")
+            if (userAgent != null) setRequestProperty("User-Agent", userAgent)
+            val accept = if (userAgent != null) "application/json, text/plain, */*" else "text/plain, */*"
+            setRequestProperty("Accept", accept)
         }
         try {
             require(connection.responseCode == 200) { "Сервер подписки вернул ${connection.responseCode}" }
@@ -146,7 +154,7 @@ class VpnActivity : Activity() {
                 while (true) {
                     val count = stream.read(buffer)
                     if (count < 0) break
-                    require(output.size() + count <= 1_000_000) { "Подписка слишком большая" }
+                    require(output.size() + count <= VlessProfile.MAX_SUBSCRIPTION_BYTES) { "Подписка слишком большая" }
                     output.write(buffer, 0, count)
                 }
             }
