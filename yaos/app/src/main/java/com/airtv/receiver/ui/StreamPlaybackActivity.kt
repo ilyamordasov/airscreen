@@ -33,6 +33,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.airtv.receiver.R
 import com.airtv.receiver.link.MediaCandidate
 import com.airtv.receiver.link.SharedPage
 import com.airtv.receiver.link.TvCrateHttpException
@@ -92,15 +93,12 @@ class StreamPlaybackActivity : Activity() {
             isFocusableInTouchMode = true
             hideController()
         }
-        status = TextView(this).apply {
-            text = "Подключаемся к видеопотоку…"
-            textSize = 20f
-            setTextColor(Color.WHITE)
-            setBackgroundColor(0xAA000000.toInt())
-            setPadding(24, 18, 24, 18)
+        status = TvChrome.label(this, "Подключаемся к видеопотоку…", 20f).apply {
+            val inset = TvChrome.dp(this@StreamPlaybackActivity, 16)
+            setPadding(inset, inset, inset, inset)
+            setBackgroundResource(R.drawable.bg_floating)
         }
-        retry = Button(this).apply {
-            text = "Повторить"
+        retry = TvChrome.action(this, "Повторить", primary = true).apply {
             visibility = View.GONE
             isFocusableInTouchMode = true
             setOnClickListener {
@@ -112,8 +110,7 @@ class StreamPlaybackActivity : Activity() {
                 else directMediaUrl?.let { play(it) }
             }
         }
-        openPage = Button(this).apply {
-            text = "Открыть страницу"
+        openPage = TvChrome.action(this, "Открыть страницу").apply {
             visibility = View.GONE
             setOnClickListener {
                 sourcePage?.let { page ->
@@ -127,18 +124,29 @@ class StreamPlaybackActivity : Activity() {
         val actions = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             addView(retry)
-            if (sourcePage != null && sourcePage != directMediaUrl) addView(openPage)
+            if (sourcePage != null && sourcePage != directMediaUrl) {
+                addView(openPage, LinearLayout.LayoutParams(-2, -2).apply {
+                    marginStart = TvChrome.dp(this@StreamPlaybackActivity, 12)
+                })
+            }
         }
         val controls = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(status)
-            addView(actions)
+            addView(actions, LinearLayout.LayoutParams(-2, -2).apply {
+                topMargin = TvChrome.dp(this@StreamPlaybackActivity, 10)
+            })
         }
         setContentView(FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
             addView(playerView, FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-            addView(controls, FrameLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP))
+            val inset = TvChrome.dp(this@StreamPlaybackActivity, 32)
+            addView(controls, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply {
+                topMargin = inset
+                marginStart = inset
+                marginEnd = inset
+            })
         })
     }
 

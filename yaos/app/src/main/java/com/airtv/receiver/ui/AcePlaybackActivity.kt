@@ -6,10 +6,10 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.VideoView
+import com.airtv.receiver.R
 import java.net.HttpURLConnection
 import java.net.URL
 import org.json.JSONObject
@@ -24,17 +24,20 @@ class AcePlaybackActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         video = VideoView(this)
-        status = TextView(this).apply {
-            text = "Подключаемся к Ace Stream Engine…"
-            textSize = 22f
-            setTextColor(Color.WHITE)
-            setPadding(32, 24, 32, 24)
-            setBackgroundColor(0x99000000.toInt())
+        status = TvChrome.label(this, "Подключаемся к Ace Stream Engine…", 20f).apply {
+            val inset = TvChrome.dp(this@AcePlaybackActivity, 16)
+            setPadding(inset, inset, inset, inset)
+            setBackgroundResource(R.drawable.bg_floating)
         }
         val root = FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
             addView(video, FrameLayout.LayoutParams(-1, -1))
-            addView(status, FrameLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP))
+            val inset = TvChrome.dp(this@AcePlaybackActivity, 32)
+            addView(status, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply {
+                topMargin = inset
+                marginStart = inset
+                marginEnd = inset
+            })
         }
         setContentView(root)
         val contentId = intent.getStringExtra(EXTRA_CONTENT_ID)

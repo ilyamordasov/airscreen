@@ -32,7 +32,7 @@ object TvChrome {
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         setTextColor(activity.getColorStateList(R.color.button_text))
         setBackgroundResource(if (primary) R.drawable.bg_button_primary else R.drawable.bg_button)
-        minHeight = dp(activity, 58)
+        minHeight = dp(activity, 46)
         minWidth = 0
         setPadding(dp(activity, 20), 0, dp(activity, 20), 0)
         stateListAnimator = null
@@ -41,97 +41,62 @@ object TvChrome {
     fun panel(activity: Activity): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         setBackgroundResource(R.drawable.bg_card)
-        setPadding(dp(activity, 28), dp(activity, 24), dp(activity, 28), dp(activity, 24))
+        setPadding(dp(activity, 24), dp(activity, 18), dp(activity, 24), dp(activity, 18))
     }
 
-    fun installRail(activity: Activity, rail: LinearLayout, selected: Section, mainManaged: Boolean = false) {
-        rail.removeAllViews()
-        rail.orientation = LinearLayout.VERTICAL
-        rail.setBackgroundResource(R.drawable.bg_rail)
-        rail.setPadding(dp(activity, 16), dp(activity, 28), dp(activity, 16), dp(activity, 22))
-        rail.addView(LinearLayout(activity).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            addView(ImageView(activity).apply {
-                setImageResource(R.drawable.ic_airscreen)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-            }, LinearLayout.LayoutParams(dp(activity, 34), dp(activity, 34)).apply {
-                marginEnd = dp(activity, 10)
+    fun page(activity: Activity, section: Section?, title: String, subtitle: String?, content: View): LinearLayout =
+        LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundResource(R.drawable.bg_dashboard)
+            setPadding(dp(activity, 43), dp(activity, 22), dp(activity, 43), dp(activity, 24))
+            addView(navigation(activity, section), LinearLayout.LayoutParams(-1, dp(activity, 46)))
+            addView(label(activity, title, 34f), LinearLayout.LayoutParams(-1, -2).apply {
+                topMargin = dp(activity, 22)
             })
-            addView(label(activity, activity.getString(R.string.app_name), 21f).apply {
-                setTextColor(activity.getColor(R.color.accent))
-            })
-        })
-        rail.addView(label(activity, "TV  •  ПУЛЬТ", 11f, true), LinearLayout.LayoutParams(-1, -2).apply {
-            topMargin = dp(activity, 2); bottomMargin = dp(activity, 32)
-        })
+            if (subtitle != null) addView(label(activity, subtitle, 16f, true))
+            addView(content, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(activity, 16) })
+        }
 
-        val entries = listOf(
-            Triple(Section.HOME, R.id.nav_home, "⌂  Главная"),
-            Triple(Section.BROADCASTS, R.id.broadcasts_button, "▣  Трансляции"),
-            Triple(Section.VPN, R.id.vpn_button, "◇  VPN"),
-            Triple(Section.UPDATES, R.id.update_button, "↓  Обновления"),
-            Triple(Section.SETTINGS, R.id.settings_button, "⚙  Настройки"),
+    private fun navigation(activity: Activity, selected: Section?) = LinearLayout(activity).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        addView(ImageView(activity).apply {
+            setImageResource(R.drawable.dashboard_logo)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, LinearLayout.LayoutParams(dp(activity, 47), dp(activity, 47)))
+        addView(label(activity, activity.getString(R.string.app_name), 22f), LinearLayout.LayoutParams(-2, -2).apply {
+            marginStart = dp(activity, 6)
+            marginEnd = dp(activity, 22)
+        })
+        val links = listOf(
+            Section.HOME to R.string.dashboard_home,
+            Section.BROADCASTS to R.string.dashboard_broadcasts,
+            Section.VPN to R.string.dashboard_vpn,
+            Section.UPDATES to R.string.dashboard_updates,
+            Section.SETTINGS to R.string.dashboard_settings,
+            null to R.string.dashboard_diagnostics,
+            null to R.string.dashboard_back,
         )
-        for ((section, id, title) in entries) {
-            val button = action(activity, title).apply {
-                this.id = id
+        for ((target, title) in links) {
+            val button = action(activity, activity.getString(title)).apply {
                 setBackgroundResource(R.drawable.bg_nav)
                 setTextColor(activity.getColorStateList(R.color.nav_text))
-                textSize = 15f
-                gravity = Gravity.CENTER_VERTICAL or Gravity.START
-                setPadding(dp(activity, 15), 0, dp(activity, 6), 0)
-                isSelected = section == selected
-                if (!mainManaged) setOnClickListener { navigate(activity, section, selected) }
+                isSelected = target != null && target == selected
+                setPadding(dp(activity, 9), 0, dp(activity, 9), 0)
+                textSize = 14f
+                setOnClickListener {
+                    when {
+                        target != null -> navigate(activity, target, selected)
+                        title == R.string.dashboard_back -> activity.finish()
+                        else -> openMainPanel(activity, MainActivity.ACTION_OPEN_DIAGNOSTICS)
+                    }
+                }
             }
-            rail.addView(button, LinearLayout.LayoutParams(-1, dp(activity, 56)).apply { bottomMargin = dp(activity, 10) })
+            addView(button, LinearLayout.LayoutParams(-2, -1).apply { marginEnd = dp(activity, 4) })
         }
-        val diagnostics = action(activity, "◎  Диагностика").apply {
-            id = R.id.diagnostics_button
-            setBackgroundResource(R.drawable.bg_nav)
-            setTextColor(activity.getColorStateList(R.color.nav_text))
-            textSize = 14f
-            gravity = Gravity.CENTER_VERTICAL or Gravity.START
-            setPadding(dp(activity, 15), 0, dp(activity, 6), 0)
-            if (!mainManaged) setOnClickListener { openMainPanel(activity, MainActivity.ACTION_OPEN_DIAGNOSTICS) }
-        }
-        rail.addView(diagnostics, LinearLayout.LayoutParams(-1, dp(activity, 56)))
-        rail.addView(View(activity), LinearLayout.LayoutParams(1, 0, 1f))
-        val bottom = action(activity, if (mainManaged) "⏻  Выход" else "←  Назад").apply {
-            id = R.id.exit_button
-            setBackgroundResource(R.drawable.bg_nav)
-            setTextColor(activity.getColorStateList(R.color.nav_text))
-            textSize = 15f
-            gravity = Gravity.CENTER_VERTICAL or Gravity.START
-            setPadding(dp(activity, 15), 0, dp(activity, 6), 0)
-            if (!mainManaged) setOnClickListener { activity.finish() }
-        }
-        rail.addView(bottom, LinearLayout.LayoutParams(-1, dp(activity, 54)))
     }
 
-    fun page(activity: Activity, section: Section, eyebrow: String, title: String, subtitle: String, content: View): LinearLayout {
-        val root = LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setBackgroundResource(R.drawable.bg_dashboard)
-        }
-        val rail = LinearLayout(activity).apply { id = R.id.nav_rail }
-        root.addView(rail, LinearLayout.LayoutParams(dp(activity, 192), -1))
-        installRail(activity, rail, section)
-        val main = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(activity, 38), dp(activity, 30), dp(activity, 42), dp(activity, 28))
-        }
-        root.addView(main, LinearLayout.LayoutParams(0, -1, 1f))
-        main.addView(label(activity, eyebrow.uppercase(), 13f).apply {
-            setTextColor(activity.getColor(R.color.accent)); letterSpacing = 0.13f
-        })
-        main.addView(label(activity, title, 39f), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(activity, 6) })
-        main.addView(label(activity, subtitle, 15f, true), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(activity, 4) })
-        main.addView(content, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(activity, 24) })
-        return root
-    }
-
-    private fun navigate(activity: Activity, target: Section, selected: Section) {
-        if (target == selected && (target != Section.BROADCASTS || activity is BroadcastsActivity)) return
+    private fun navigate(activity: Activity, target: Section, selected: Section?) {
+        if (target == selected) return
         when (target) {
             Section.HOME -> openMainPanel(activity, null)
             Section.SETTINGS -> openMainPanel(activity, MainActivity.ACTION_OPEN_SETTINGS)

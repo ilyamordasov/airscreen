@@ -1,11 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item><shape android:shape="rectangle"><gradient android:angle="0"
-        android:startColor="#101029" android:centerColor="#291127" android:endColor="#102A59" /></shape></item>
-    <item><shape android:shape="rectangle"><gradient android:type="radial"
-        android:centerX="0.53" android:centerY="0.08" android:gradientRadius="700dp"
-        android:startColor="#7A8F1738" android:endColor="#00201640" /></shape></item>
-    <item><shape android:shape="rectangle"><gradient android:type="radial"
-        android:centerX="1.0" android:centerY="0.82" android:gradientRadius="700dp"
-        android:startColor="#652A67D1" android:endColor="#002A67D1" /></shape></item>
-</layer-list>
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/dashboard_backdrop" android:gravity="fill" android:filter="true" />

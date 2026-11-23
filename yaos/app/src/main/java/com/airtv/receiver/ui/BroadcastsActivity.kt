@@ -28,8 +28,9 @@ class BroadcastsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_broadcasts)
-        TvChrome.installRail(this, findViewById(R.id.nav_rail), TvChrome.Section.BROADCASTS)
+        val content = layoutInflater.inflate(R.layout.activity_broadcasts, null, false)
+        setContentView(TvChrome.page(this, TvChrome.Section.BROADCASTS,
+            getString(R.string.dashboard_broadcasts), null, content))
         tiles = findViewById(R.id.broadcasts_tiles)
         status = findViewById(R.id.broadcasts_status)
         aceStatus = findViewById(R.id.ace_status)
@@ -44,7 +45,8 @@ class BroadcastsActivity : Activity() {
         addTile("Передать ссылку с телефона", "freecast:share")
         addTile("Матч ТВ — бесплатный прямой эфир", "https://matchtv.ru/video/channel/matchtv")
         addTile("Матч Премьер — по подписке (приложение МАТЧ!)", "https://matchtv.ru/match-app")
-        addTile("Матч! Премьер · TVCrate", TvCrateResolver.MATCH_PREMIER_URL)
+        val tvCrate = addTile("Матч! Премьер · TVCrate", TvCrateResolver.MATCH_PREMIER_URL)
+        if (generation == 1) tvCrate.requestFocus()
         addTile("Все трансляции Спартака", CATALOG_URL)
         status.text = "Обновляем список матчей…"
         aceStatus.text = "Ищем P2P-эфиры через Ace Stream Engine…"
@@ -215,14 +217,9 @@ class BroadcastsActivity : Activity() {
             .take(12)
     }
 
-    private fun addTile(title: String, url: String) {
-        val button = Button(this).apply {
-            text = title
-            isAllCaps = false
-            textSize = 20f
-            setTextColor(getColorStateList(R.color.button_text))
-            setBackgroundResource(R.drawable.bg_button)
-            minHeight = dp(112)
+    private fun addTile(title: String, url: String): Button {
+        val button = TvChrome.action(this, title).apply {
+            textSize = 19f
             gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.START
             setPadding(dp(24), dp(12), dp(24), dp(12))
             setOnClickListener {
@@ -244,12 +241,14 @@ class BroadcastsActivity : Activity() {
         } else {
             LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
+                isBaselineAligned = false
                 tiles.addView(this, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
             }
         }
-        row.addView(button, LinearLayout.LayoutParams(0, dp(112), 1f).apply {
-            if (row.childCount > 0) leftMargin = dp(12)
+        row.addView(button, LinearLayout.LayoutParams(0, dp(78), 1f).apply {
+            if (row.childCount > 0) marginStart = dp(12)
         })
+        return button
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()

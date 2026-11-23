@@ -38,7 +38,7 @@
     <string name="profile_summary">Профиль: %1$dp · %2$d кадр/с</string>
     <string name="address_summary">IP: %1$s</string>
     <string name="guide_title">Как подключиться</string>
-    <string name="guide_network">Подключите iPhone и телевизор к одной сети Wi-Fi.</string>
+    <string name="guide_network">Подключите iPhone и телевизор к одной локальной сети.</string>
     <string name="guide_control_center">На iPhone откройте Пункт управления.</string>
     <string name="guide_mirroring">Нажмите «Повтор экрана» и выберите имя слева.</string>
     <string name="hint">iPhone → Пункт управления → Повтор экрана</string>
@@ -52,7 +52,6 @@
     <string name="action_diagnostics">Диагностика</string>
     <string name="action_broadcasts">Трансляции</string>
     <string name="action_updates">Обновление</string>
-    <string name="update_badge">Обновить до %1$s</string>
     <string name="update_title">Обновление AirScreen</string>
     <string name="update_checking">Проверяем новую версию…</string>
     <string name="update_no_release">Опубликованных версий пока нет.</string>
@@ -103,4 +102,26 @@
     <string name="open_source_credit">AirScreen · На основе AirTV и UxPlay · GPLv3</string>
     <string name="exit_title">Выйти из AirScreen?</string>
     <string name="exit_message">Текущая трансляция остановится. Для нового подключения запустите приложение снова.</string>
+    <string name="dashboard_home">Главная</string>
+    <string name="dashboard_receiver">Приёмник AirPlay</string>
+    <string name="dashboard_receiver_description">Передавайте видео, фото и экран с iPhone или iPad</string>
+    <string name="dashboard_airplay_active">AirPlay активен</string>
+    <string name="dashboard_broadcasts">Трансляции</string>
+    <string name="dashboard_broadcasts_description">Эфир, спорт и ТВ через TVCrate</string>
+    <string name="dashboard_vpn">VPN</string>
+    <string name="dashboard_vpn_description">Подключение и выбор узла</string>
+    <string name="dashboard_updates">Обновления</string>
+    <string name="dashboard_updates_description">Текущая версия v%1$s</string>
+    <string name="dashboard_new_version">Новая версия v%1$s</string>
+    <string name="dashboard_settings">Настройки</string>
+    <string name="dashboard_settings_description">Имя приёмника и качество видео</string>
+    <string name="dashboard_diagnostics">Диагностика</string>
+    <string name="dashboard_diagnostics_description">Состояние приёмника и сети</string>
+    <string name="dashboard_network_wifi">Подключение по Wi-Fi</string>
+    <string name="dashboard_network_lan">Подключение по Ethernet</string>
+    <string name="dashboard_network_offline">Сеть отключена</string>
+    <string name="dashboard_network_connected">Сеть подключена</string>
+    <string name="dashboard_back">Назад</string>
+    <string name="dashboard_send_link">Передать ссылку</string>
+    <string name="dashboard_vpn_qr">QR-код для подключения VPN</string>
 </resources>

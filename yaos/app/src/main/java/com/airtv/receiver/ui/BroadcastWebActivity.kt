@@ -18,6 +18,7 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.airtv.receiver.R
 import com.airtv.receiver.link.MediaCandidate
 import com.airtv.receiver.link.SharedPage
 import com.airtv.receiver.link.TvCrateResolver
@@ -94,19 +95,14 @@ class BroadcastWebActivity : Activity() {
         }
         root.addView(cover, FrameLayout.LayoutParams(-1, -1))
         toolbar = LinearLayout(this).apply {
-            setBackgroundColor(0xDD101827.toInt())
+            setBackgroundResource(R.drawable.bg_floating)
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(16), dp(8), dp(16), dp(8))
         }
-        val status = TextView(this).apply {
-            text = if (discovering) "Ищем видеопоток…" else "Страница на ТВ"
-            textSize = 19f
-            setTextColor(Color.WHITE)
-        }
+        val status = TvChrome.label(this, if (discovering) "Ищем видеопоток…" else "Страница на ТВ", 19f)
         toolbar.addView(status, LinearLayout.LayoutParams(0, -2, 1f))
-        val showPage = Button(this).apply {
-            text = "Открыть страницу"
+        val showPage = TvChrome.action(this, "Открыть страницу", primary = true).apply {
             visibility = if (discovering) View.VISIBLE else View.GONE
             setOnClickListener {
                 discovering = false
@@ -118,8 +114,7 @@ class BroadcastWebActivity : Activity() {
             }
         }
         toolbar.addView(showPage)
-        pointerButton = Button(this).apply {
-            text = "Указатель"
+        pointerButton = TvChrome.action(this, "Указатель").apply {
             visibility = if (discovering) View.GONE else View.VISIBLE
             setOnClickListener { setPointerMode(!pointerMode) }
         }
@@ -129,7 +124,7 @@ class BroadcastWebActivity : Activity() {
             text = "◎"
             textSize = 34f
             setTextColor(Color.WHITE)
-            setBackgroundColor(0x99000000.toInt())
+            setBackgroundResource(R.drawable.bg_floating)
             gravity = Gravity.CENTER
             visibility = View.GONE
         }

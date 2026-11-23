@@ -9,7 +9,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.content.res.ColorStateList
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -48,20 +47,14 @@ class MainActivity : Activity() {
 
     private lateinit var screenRoot: FrameLayout
     private lateinit var surfaceView: SurfaceView
-    private lateinit var overlay: View
+    private lateinit var overlay: FrameLayout
+    private lateinit var dashboard: TvDashboard
+    private lateinit var receiverDetails: View
     private lateinit var receiverName: TextView
     private lateinit var connectionInfo: TextView
-    private lateinit var stateLabel: TextView
-    private lateinit var statusIndicator: View
-    private lateinit var statusProgress: View
     private lateinit var statusText: TextView
     private lateinit var detailsText: TextView
     private lateinit var toggleButton: Button
-    private lateinit var settingsButton: Button
-    private lateinit var diagnosticsButton: Button
-    private lateinit var broadcastsButton: Button
-    private lateinit var updateButton: Button
-    private lateinit var vpnButton: Button
     private lateinit var resumeButton: Button
     private lateinit var playbackHint: View
 
@@ -122,47 +115,29 @@ class MainActivity : Activity() {
         }
     }
 
-    // TvChrome installs the navigation buttons into nav_rail before they are looked up below.
-    @android.annotation.SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        TvChrome.installRail(this, findViewById(R.id.nav_rail), TvChrome.Section.HOME, mainManaged = true)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         screenRoot = findViewById(R.id.screen_root)
         surfaceView = findViewById(R.id.surface)
         overlay = findViewById(R.id.overlay)
+        receiverDetails = findViewById(R.id.receiver_details)
+        dashboard = TvDashboard(this, ::openDestination)
+        overlay.addView(dashboard, 0, FrameLayout.LayoutParams(-1, -1))
         receiverName = findViewById(R.id.receiver_name)
         connectionInfo = findViewById(R.id.connection_info)
-        stateLabel = findViewById(R.id.state_label)
-        statusIndicator = findViewById(R.id.status_indicator)
-        statusProgress = findViewById(R.id.status_progress)
         statusText = findViewById(R.id.status)
         detailsText = findViewById(R.id.details)
         toggleButton = findViewById(R.id.toggle_receiver)
-        settingsButton = findViewById(R.id.settings_button)
-        diagnosticsButton = findViewById(R.id.diagnostics_button)
-        broadcastsButton = findViewById(R.id.broadcasts_button)
-        updateButton = findViewById(R.id.update_button)
-        vpnButton = findViewById(R.id.vpn_button)
         resumeButton = findViewById(R.id.resume_button)
         playbackHint = findViewById(R.id.playback_hint)
 
         toggleButton.setOnClickListener { toggleReceiver() }
-        settingsButton.setOnClickListener { showSettings() }
-        diagnosticsButton.setOnClickListener { showDiagnostics() }
-        broadcastsButton.setOnClickListener { startActivity(Intent(this, BroadcastsActivity::class.java)) }
-        updateButton.setOnClickListener { startActivity(Intent(this, UpdateActivity::class.java)) }
-        vpnButton.setOnClickListener { startActivity(Intent(this, VpnActivity::class.java)) }
-        findViewById<View>(R.id.quick_broadcasts).setOnClickListener {
-            startActivity(Intent(this, BroadcastsActivity::class.java))
-        }
+        findViewById<View>(R.id.receiver_back).setOnClickListener { showDashboard() }
         findViewById<View>(R.id.quick_share).setOnClickListener {
             startActivity(Intent(this, LinkShareActivity::class.java))
-        }
-        findViewById<View>(R.id.quick_vpn).setOnClickListener {
-            startActivity(Intent(this, VpnActivity::class.java))
         }
         resumeButton.setOnClickListener { hideControls() }
         findViewById<View>(R.id.exit_button).setOnClickListener { requestExit() }
@@ -186,8 +161,42 @@ class MainActivity : Activity() {
         })
 
         render(ReceiverState.Starting)
-        toggleButton.requestFocus()
+        dashboard.focus(savedInstanceState?.getInt(STATE_DASHBOARD_TILE) ?: 0)
+        if (savedInstanceState?.getBoolean(STATE_RECEIVER_DETAILS) == true) showReceiverDetails()
         handlePanelIntent(intent)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt(STATE_DASHBOARD_TILE, dashboard.selectedIndex)
+        outState.putBoolean(STATE_RECEIVER_DETAILS, receiverDetails.visibility == View.VISIBLE)
+        super.onSaveInstanceState(outState)
+    }
+
+    private fun openDestination(destination: TvDashboard.Destination) {
+        when (destination) {
+            TvDashboard.Destination.RECEIVER -> showReceiverDetails()
+            TvDashboard.Destination.BROADCASTS -> startActivity(Intent(this, BroadcastsActivity::class.java))
+            TvDashboard.Destination.VPN -> startActivity(Intent(this, VpnActivity::class.java))
+            TvDashboard.Destination.UPDATES -> startActivity(Intent(this, UpdateActivity::class.java))
+            TvDashboard.Destination.SETTINGS -> showSettings()
+            TvDashboard.Destination.DIAGNOSTICS -> showDiagnostics()
+        }
+    }
+
+    private fun showDashboard() {
+        receiverDetails.visibility = View.GONE
+        dashboard.visibility = View.VISIBLE
+        dashboard.focus()
+    }
+
+    private fun showReceiverDetails() {
+        dashboard.visibility = View.GONE
+        receiverDetails.visibility = View.VISIBLE
+        when {
+            resumeButton.visibility == View.VISIBLE -> resumeButton.requestFocus()
+            toggleButton.isEnabled -> toggleButton.requestFocus()
+            else -> findViewById<View>(R.id.receiver_back).requestFocus()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -216,6 +225,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         resumed = true
+        dashboard.updateNetwork()
         if (diagnosticsText != null) uiHandler.post(refreshDiagnostics)
     }
 
@@ -288,36 +298,39 @@ class MainActivity : Activity() {
         if (next !is ReceiverState.Connecting) uiHandler.removeCallbacks(connectingHint)
 
         val busy = next is ReceiverState.Starting || next is ReceiverState.Connecting
-        statusProgress.visibility = if (busy) View.VISIBLE else View.GONE
-        statusIndicator.visibility = if (busy) View.GONE else View.VISIBLE
         val tint = when (next) {
             is ReceiverState.Failed -> R.color.error
-            is ReceiverState.AudioOnly -> if (next.playable) R.color.accent else R.color.warning
+            is ReceiverState.AudioOnly -> if (next.playable) R.color.dashboard_online else R.color.warning
             ReceiverState.Stopped -> R.color.muted
+            is ReceiverState.Advertising, is ReceiverState.Streaming -> R.color.dashboard_online
             else -> R.color.accent
         }
-        statusIndicator.backgroundTintList = ColorStateList.valueOf(getColor(tint))
-        stateLabel.setTextColor(getColor(tint))
+        val label = when (next) {
+            ReceiverState.Starting -> R.string.state_starting
+            ReceiverState.Stopped -> R.string.state_stopped
+            is ReceiverState.Advertising -> R.string.dashboard_airplay_active
+            is ReceiverState.Connecting -> R.string.state_connecting
+            is ReceiverState.Streaming -> R.string.state_streaming
+            is ReceiverState.AudioOnly -> if (next.playable) R.string.state_audio else R.string.state_unsupported
+            is ReceiverState.Failed -> R.string.state_error
+        }
+        dashboard.showReceiverState(getText(label), getColor(tint), busy)
 
         when (next) {
             ReceiverState.Starting -> {
-                stateLabel.setText(R.string.state_starting)
                 statusText.setText(R.string.status_starting)
                 detailsText.setText(R.string.detail_starting)
             }
             ReceiverState.Stopped -> {
-                stateLabel.setText(R.string.state_stopped)
                 statusText.setText(R.string.status_stopped)
                 detailsText.setText(R.string.detail_stopped)
             }
             is ReceiverState.Advertising -> {
                 lastAddress = next.address
-                stateLabel.setText(R.string.state_ready)
                 statusText.setText(R.string.status_ready_heading)
                 detailsText.setText(R.string.detail_ready)
             }
             is ReceiverState.Connecting -> {
-                stateLabel.setText(R.string.state_connecting)
                 statusText.text = getString(R.string.status_connecting, senderName(next.clientName))
                 detailsText.setText(R.string.detail_connecting)
                 if (previous !is ReceiverState.Connecting) {
@@ -325,13 +338,11 @@ class MainActivity : Activity() {
                 }
             }
             is ReceiverState.Streaming -> {
-                stateLabel.setText(R.string.state_streaming)
                 statusText.text = getString(R.string.status_streaming, senderName(next.clientName))
                 detailsText.setText(R.string.detail_streaming)
                 applyVideoAspect(next.width, next.height)
             }
             is ReceiverState.AudioOnly -> {
-                stateLabel.setText(if (next.playable) R.string.state_audio else R.string.state_unsupported)
                 if (next.playable) {
                     statusText.text = getString(R.string.status_audio_only, senderName(next.clientName))
                     detailsText.setText(R.string.status_audio_only_detail)
@@ -341,7 +352,6 @@ class MainActivity : Activity() {
                 }
             }
             is ReceiverState.Failed -> {
-                stateLabel.setText(R.string.state_error)
                 statusText.setText(R.string.status_failed)
                 detailsText.text = next.reason
             }
@@ -373,7 +383,7 @@ class MainActivity : Activity() {
             if (latest != null && (current == null || latest.version > current)) {
                 runOnUiThread {
                     if (!isFinishing && !isDestroyed) {
-                        updateButton.text = getString(R.string.update_badge, latest.version.toString())
+                        dashboard.showAvailableUpdate(latest.version.toString())
                     }
                 }
             }
@@ -403,7 +413,8 @@ class MainActivity : Activity() {
         if (showDashboard) {
             playbackHint.visibility = View.GONE
             if (!wasVisible) {
-                if (streaming) resumeButton.requestFocus() else toggleButton.requestFocus()
+                if (streaming || receiverDetails.visibility == View.VISIBLE) showReceiverDetails()
+                else dashboard.focus()
             }
         } else {
             screenRoot.requestFocus()
@@ -413,7 +424,7 @@ class MainActivity : Activity() {
     private fun showControls() {
         controlsRequested = true
         updateControls()
-        resumeButton.requestFocus()
+        if (receiverDetails.visibility != View.VISIBLE) showReceiverDetails()
     }
 
     private fun hideControls() {
@@ -452,6 +463,8 @@ class MainActivity : Activity() {
     private fun handleBack() {
         if (currentState is ReceiverState.Streaming) {
             if (overlay.visibility == View.VISIBLE) hideControls() else showControls()
+        } else if (receiverDetails.visibility == View.VISIBLE) {
+            showDashboard()
         } else {
             requestExit()
         }
@@ -603,7 +616,7 @@ class MainActivity : Activity() {
                 uiHandler.removeCallbacks(refreshDiagnostics)
                 if (!isFinishing && !isDestroyed && overlay.visibility == View.VISIBLE) {
                     if (returnFocus?.isShown == true) returnFocus.requestFocus()
-                    else settingsButton.requestFocus()
+                    else if (dashboard.isShown) dashboard.focus()
                 }
             }
         }
@@ -644,6 +657,8 @@ class MainActivity : Activity() {
     }
 
     companion object {
+        private const val STATE_DASHBOARD_TILE = "dashboardTile"
+        private const val STATE_RECEIVER_DETAILS = "receiverDetails"
         const val ACTION_OPEN_SETTINGS = "com.airtv.receiver.OPEN_SETTINGS"
         const val ACTION_OPEN_DIAGNOSTICS = "com.airtv.receiver.OPEN_DIAGNOSTICS"
         const val PLAYBACK_HINT_DURATION_MS = 5_000L

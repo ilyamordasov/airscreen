@@ -3,84 +3,61 @@
     android:id="@+id/screen_root" android:layout_width="match_parent" android:layout_height="match_parent"
     android:background="@android:color/black" android:focusable="true" android:focusableInTouchMode="true">
     <SurfaceView android:id="@+id/surface" android:layout_width="match_parent" android:layout_height="match_parent" />
-    <LinearLayout android:id="@+id/overlay" android:layout_width="match_parent" android:layout_height="match_parent"
-        android:background="@drawable/bg_dashboard" android:orientation="horizontal">
-        <LinearLayout android:id="@id/nav_rail" android:layout_width="192dp" android:layout_height="match_parent"
-            android:orientation="vertical" />
-        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
-            android:orientation="vertical" android:paddingStart="38dp" android:paddingTop="28dp"
-            android:paddingEnd="42dp" android:paddingBottom="26dp">
+    <FrameLayout android:id="@+id/overlay" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:background="@drawable/bg_dashboard">
+        <LinearLayout android:id="@+id/receiver_details" android:layout_width="match_parent" android:layout_height="match_parent"
+            android:orientation="vertical" android:paddingStart="48dp" android:paddingTop="28dp"
+            android:paddingEnd="48dp" android:paddingBottom="32dp" android:visibility="gone">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:gravity="center_vertical" android:orientation="horizontal">
-                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                    android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="AIRSCREEN  •  AIRPLAY" android:textColor="@color/accent"
-                        android:textSize="13sp" android:letterSpacing="0.13" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:layout_marginTop="5dp" android:text="Главная" android:textColor="@color/foreground"
-                        android:fontFamily="sans-serif-medium" android:textSize="39sp" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Трансляции и видео на большом экране" android:textColor="@color/muted" android:textSize="15sp" />
-                </LinearLayout>
-                <LinearLayout android:layout_width="wrap_content" android:layout_height="44dp"
-                    android:background="@drawable/bg_status" android:gravity="center" android:orientation="horizontal"
-                    android:paddingStart="16dp" android:paddingEnd="16dp">
-                    <View android:id="@+id/status_indicator" android:layout_width="8dp" android:layout_height="8dp"
-                        android:background="@drawable/bg_indicator" />
-                    <ProgressBar android:id="@+id/status_progress" style="?android:attr/progressBarStyleSmall"
-                        android:layout_width="16dp" android:layout_height="16dp" android:visibility="gone"
-                        android:indeterminateTint="@color/accent" />
-                    <TextView android:id="@+id/state_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:layout_marginStart="10dp" android:text="@string/state_starting"
-                        android:textColor="@color/foreground" android:textSize="14sp" />
-                </LinearLayout>
+                android:orientation="horizontal" android:gravity="center_vertical">
+                <ImageView android:layout_width="54dp" android:layout_height="50dp"
+                    android:src="@drawable/dashboard_logo" android:importantForAccessibility="no" />
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:layout_marginStart="10dp" android:text="@string/dashboard_receiver"
+                    android:textColor="@color/foreground" android:textSize="30sp" android:fontFamily="sans-serif-medium" />
+                <Button android:id="@+id/receiver_back" style="@style/FreeCast.ActionButton"
+                    android:layout_width="128dp" android:layout_height="48dp" android:text="@string/dashboard_back" />
             </LinearLayout>
             <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
-                android:layout_marginTop="24dp" android:orientation="horizontal">
-                <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1.18"
-                    android:background="@drawable/bg_receiver_card" android:orientation="vertical" android:padding="27dp">
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:text="ПРИЁМНИК AIRPLAY" android:textColor="@color/accent" android:textSize="13sp" android:letterSpacing="0.12" />
+                android:layout_marginTop="20dp" android:baselineAligned="false" android:orientation="horizontal">
+                <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1.32"
+                    android:background="@drawable/bg_receiver_card" android:orientation="vertical" android:padding="24dp">
                     <TextView android:id="@+id/receiver_name" android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp" android:text="@string/app_name" android:textColor="@color/foreground"
-                        android:fontFamily="sans-serif-medium" android:textSize="38sp" android:maxLines="2" android:ellipsize="end" />
+                        android:text="@string/app_name" android:textColor="@color/foreground" android:fontFamily="sans-serif-medium"
+                        android:textSize="34sp" android:maxLines="2" android:ellipsize="end" />
                     <TextView android:id="@+id/connection_info" android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp" android:textColor="@color/muted" android:textSize="14sp" />
+                        android:layout_marginTop="7dp" android:textColor="@color/muted" android:textSize="15sp" />
                     <View android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
                     <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:accessibilityLiveRegion="polite" android:maxLines="2" android:ellipsize="end"
                         android:text="@string/status_starting" android:textColor="@color/foreground"
                         android:fontFamily="sans-serif-medium" android:textSize="22sp" />
                     <TextView android:id="@+id/details" android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:layout_marginTop="7dp" android:maxLines="3" android:ellipsize="end"
-                        android:text="@string/detail_starting" android:textColor="@color/muted" android:textSize="14sp" />
+                        android:layout_marginTop="7dp" android:maxLines="4" android:ellipsize="end"
+                        android:text="@string/detail_starting" android:textColor="@color/muted" android:textSize="15sp" />
                     <Button android:id="@+id/toggle_receiver" style="@style/FreeCast.PrimaryButton"
-                        android:layout_width="match_parent" android:layout_height="58dp" android:layout_marginTop="24dp"
-                        android:text="@string/action_start" />
+                        android:layout_width="match_parent" android:layout_height="58dp" android:layout_marginTop="18dp"
+                        android:nextFocusRight="@id/quick_share" android:text="@string/action_start" />
                 </LinearLayout>
-                <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0.82"
-                    android:layout_marginStart="18dp" android:orientation="vertical">
-                    <Button android:id="@+id/quick_broadcasts" style="@style/FreeCast.TileButton"
-                        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
-                        android:text="▣   Трансляции матчей" />
-                    <Button android:id="@+id/quick_share" style="@style/FreeCast.TileButton"
-                        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
-                        android:layout_marginTop="14dp" android:text="↗   Передать ссылку" />
-                    <Button android:id="@+id/quick_vpn" style="@style/FreeCast.TileButton"
-                        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
-                        android:layout_marginTop="14dp" android:text="◇   VPN" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0.68"
+                    android:layout_marginStart="16dp" android:orientation="vertical" android:background="@drawable/bg_card"
+                    android:padding="20dp">
+                    <Button android:id="@+id/quick_share" style="@style/FreeCast.ActionButton"
+                        android:layout_width="match_parent" android:layout_height="58dp"
+                        android:nextFocusLeft="@id/toggle_receiver" android:text="@string/dashboard_send_link" />
+                    <Button android:id="@+id/resume_button" style="@style/FreeCast.ActionButton"
+                        android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="12dp"
+                        android:text="@string/action_resume" android:visibility="gone" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp" android:text="@string/guide_network"
+                        android:textColor="@color/muted" android:textSize="15sp" />
+                    <View android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1" />
+                    <Button android:id="@id/exit_button" style="@style/FreeCast.ActionButton"
+                        android:layout_width="match_parent" android:layout_height="56dp" android:text="@string/action_exit" />
                 </LinearLayout>
-            </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginTop="18dp" android:gravity="center_vertical" android:orientation="horizontal">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                    android:text="iPhone и телевизор должны быть в одной сети Wi-Fi" android:textColor="@color/muted" android:textSize="13sp" />
-                <Button android:id="@+id/resume_button" style="@style/FreeCast.ActionButton"
-                    android:layout_width="190dp" android:layout_height="56dp" android:text="@string/action_resume" android:visibility="gone" />
             </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
+    </FrameLayout>
     <TextView android:id="@+id/playback_hint" android:layout_width="wrap_content" android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal" android:layout_marginBottom="28dp"
         android:background="@drawable/bg_floating" android:paddingStart="22dp" android:paddingTop="12dp"

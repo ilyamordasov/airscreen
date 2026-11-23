@@ -18,7 +18,9 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.core.widget.doAfterTextChanged
 import com.airtv.receiver.FreeCastApplication
+import com.airtv.receiver.R
 import com.airtv.receiver.vpn.CheckedProxy
 import com.airtv.receiver.vpn.FreeCastVpnService
 import com.airtv.receiver.vpn.ProxyScanner
@@ -61,19 +63,31 @@ class VpnActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
-        profileStatus = label(profileLabel(), 19f)
-        status = label(FreeCastVpnService.state, 21f)
-        importStatus = label("", 18f)
+        profileStatus = TvChrome.label(this, profileLabel(), 17f, muted = true)
+        status = TvChrome.label(this, FreeCastVpnService.state, 21f)
+        importStatus = TvChrome.label(this, "", 16f).apply {
+            visibility = View.GONE
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            doAfterTextChanged { value -> visibility = if (value.isNullOrBlank()) View.GONE else View.VISIBLE }
+        }
         val info = TvChrome.panel(this)
-        info.addView(TvChrome.label(this, "СОСТОЯНИЕ", 13f).apply { setTextColor(getColor(com.airtv.receiver.R.color.accent)) })
-        info.addView(status)
-        info.addView(profileStatus)
+        info.addView(TvChrome.label(this, "СОСТОЯНИЕ", 13f).apply { setTextColor(getColor(R.color.accent)) })
+        info.addView(LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(status, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(profileStatus, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(16) })
+        })
         info.addView(importStatus)
         root.addView(info, LinearLayout.LayoutParams(-1, -2))
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         importPanel = row
-        val qr = ImageView(this).apply { setBackgroundColor(Color.WHITE); setPadding(dp(8), dp(8), dp(8), dp(8)) }
-        row.addView(qr, LinearLayout.LayoutParams(dp(220), dp(220)))
+        val qr = ImageView(this).apply {
+            id = R.id.vpn_import_qr
+            setBackgroundColor(Color.WHITE)
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            contentDescription = getString(R.string.dashboard_vpn_qr)
+        }
+        row.addView(qr, LinearLayout.LayoutParams(dp(156), dp(156)))
         val instructions = label("", 18f)
         val instructionPanel = TvChrome.panel(this)
         instructionPanel.addView(instructions)
@@ -97,8 +111,9 @@ class VpnActivity : Activity() {
         }
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(12) })
         renderProxies(VpnProfileStore.proxies(this))
-        setContentView(TvChrome.page(this, TvChrome.Section.VPN, "AIRSCREEN • СЕТЬ", "VPN",
+        setContentView(TvChrome.page(this, TvChrome.Section.VPN, "VPN",
             "Подключение только для AirScreen", root))
+        actions.getChildAt(0).requestFocus()
 
         val address = localAddress()
         if (address == null) {

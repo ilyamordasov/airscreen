@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="background">#0B0C24</color>
+    <color name="background">#0E101C</color>
     <color name="foreground">#F8F7FC</color>
-    <color name="muted">#BEC1D3</color>
-    <color name="accent">#E64B55</color>
+    <color name="muted">#B3B2CA</color>
+    <color name="accent">#DC9CFF</color>
     <color name="warning">#FFC47A</color>
-    <color name="error">#FF9A9D</color>
-    <color name="card">#25263F</color>
-    <color name="border">#505475</color>
-    <color name="ink">#10142B</color>
-    <color name="focus_surface">#F7F8FF</color>
+    <color name="error">#FFA4AE</color>
+    <color name="card">#18192F</color>
+    <color name="border">#434263</color>
+    <color name="ink">#101222</color>
+    <color name="focus_surface">#EEE5FF</color>
+    <color name="dashboard_online">#39F3A6</color>
+    <color name="dashboard_pill">#232438</color>
+    <color name="dashboard_arrow">#3B3A60</color>
+    <color name="dashboard_indicator">#EAC1FF</color>
 </resources>

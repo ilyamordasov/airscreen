@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_enabled="false"><shape><solid android:color="#855E414C" /><corners android:radius="16dp" /></shape></item>
+    <item android:state_enabled="false"><shape><solid android:color="#60403963" /><corners android:radius="16dp" /></shape></item>
     <item android:state_focused="true"><shape><solid android:color="@color/focus_surface" /><stroke android:width="3dp" android:color="@color/accent" /><corners android:radius="16dp" /></shape></item>
-    <item android:state_pressed="true"><shape><solid android:color="#F1D7E0" /><corners android:radius="16dp" /></shape></item>
-    <item><shape><solid android:color="@color/accent" /><corners android:radius="16dp" /></shape></item>
+    <item android:state_pressed="true"><shape><solid android:color="#E4D5FF" /><corners android:radius="16dp" /></shape></item>
+    <item><shape><gradient android:angle="0" android:startColor="#7732A8" android:endColor="#4946A8" /><corners android:radius="16dp" /></shape></item>
 </selector>

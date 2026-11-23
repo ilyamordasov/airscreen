@@ -45,7 +45,7 @@ class LinkShareActivity : Activity() {
         val instructionsPanel = TvChrome.panel(this)
         instructionsPanel.addView(instructions)
         row.addView(instructionsPanel, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(24) })
-        setContentView(TvChrome.page(this, TvChrome.Section.BROADCASTS, "AIRSCREEN • IPHONE",
+        setContentView(TvChrome.page(this, null,
             "Передать ссылку", "Откройте страницу с видео на телевизоре", root))
 
         val address = localAddress()

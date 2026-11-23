@@ -50,7 +50,7 @@ class LinkShareServer(
 
     private fun html(content: String): String = """
         <!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>AirScreen</title><style>body{font:18px system-ui,sans-serif;max-width:34rem;margin:2rem auto;padding:0 1rem;background:#101827;color:white}input,button{box-sizing:border-box;width:100%;padding:1rem;margin:.5rem 0;border-radius:.6rem;font:inherit}button{background:#49b9c9;color:#071217;border:0}p{line-height:1.4}</style>
+        <title>AirScreen</title><style>$LAN_FORM_STYLE</style>
         <h1>AirScreen</h1><p>$content</p>
         <form method="post" action="/send"><label>Ссылка из Safari<input name="url" type="url" inputmode="url" maxlength="2048" placeholder="https://…" required></label>
         <label>Код на телевизоре<input name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required></label>

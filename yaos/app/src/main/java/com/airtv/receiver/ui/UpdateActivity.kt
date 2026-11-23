@@ -63,7 +63,7 @@ class UpdateActivity : Activity() {
         panel.addView(progress, LinearLayout.LayoutParams(-1, dp(20)).apply { topMargin = dp(24) })
         root.addView(panel, LinearLayout.LayoutParams(-1, -2))
         root.addView(action, LinearLayout.LayoutParams(dp(260), dp(60)).apply { topMargin = dp(20) })
-        setContentView(TvChrome.page(this, TvChrome.Section.UPDATES, "AIRSCREEN • ПРИЛОЖЕНИЕ",
+        setContentView(TvChrome.page(this, TvChrome.Section.UPDATES,
             "Обновления", "Установка новой версии по сети", root))
         action.requestFocus()
         checkLatest()
