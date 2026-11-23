@@ -127,7 +127,12 @@ internal class TvPosterCarousel<Key : Any>(
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
+    private val compactPosters: Boolean get() = !showDots && scale < maxScale * .76f
+
     private fun size(units: Int) = (scale * units).roundToInt().coerceAtLeast(1)
+
+    private fun posterSize(units: Int) =
+        if (compactPosters) (maxScale * .9f * units).roundToInt().coerceAtLeast(1) else size(units)
 
     private fun select(card: Tile) {
         val old = selectedKey
@@ -146,7 +151,7 @@ internal class TvPosterCarousel<Key : Any>(
     }
 
     private fun resize() {
-        val markerHeight = size(18)
+        val markerHeight = posterSize(18)
         (strip.layoutParams as LayoutParams).bottomMargin = markerHeight
         (if (showDots) dots else count).layoutParams.height = markerHeight
         row.setPadding(sideInset, 0, sideInset, 0)
@@ -170,7 +175,7 @@ internal class TvPosterCarousel<Key : Any>(
                 }
             }
         } else {
-            count.setTextSize(TypedValue.COMPLEX_UNIT_PX, size(15).toFloat())
+            count.setTextSize(TypedValue.COMPLEX_UNIT_PX, posterSize(15).toFloat())
             val index = cards.indexOfFirst { it.key == selectedKey } + 1
             count.text = if (index == 0) "" else context.getString(R.string.broadcast_position, index, cards.size)
         }
@@ -223,11 +228,16 @@ internal class TvPosterCarousel<Key : Any>(
             if (lastScale == scale && active == expanded) return
             lastScale = scale
             active = expanded
-            layoutParams = LinearLayout.LayoutParams(size(if (expanded) 294 else 173), size(if (expanded) 321 else 275)).apply {
-                marginEnd = size(14)
+            layoutParams = LinearLayout.LayoutParams(posterSize(if (expanded) 294 else 173), size(if (expanded) 321 else 275)).apply {
+                marginEnd = posterSize(14)
             }
-            val gap = size(if (expanded) 31 else 20)
-            artwork.layoutParams = LayoutParams(-1, size(if (expanded) 136 else 113)).apply {
+            val gap = posterSize(if (expanded) 31 else 20)
+            val artHeight = when {
+                compactPosters && expanded -> 126
+                expanded -> 136
+                else -> 113
+            }
+            artwork.layoutParams = LayoutParams(-1, size(artHeight)).apply {
                 topMargin = size(if (expanded) 38 else 25)
                 marginStart = gap
                 marginEnd = gap
@@ -239,14 +249,21 @@ internal class TvPosterCarousel<Key : Any>(
             val showHeading = expanded && poster.heading != null
             heading.visibility = if (showHeading) VISIBLE else GONE
             heading.setTextSize(TypedValue.COMPLEX_UNIT_PX, size(15).toFloat())
-            title.setTextSize(TypedValue.COMPLEX_UNIT_PX, size(if (expanded) 24 else 19).toFloat())
-            description.setTextSize(TypedValue.COMPLEX_UNIT_PX, size(14).toFloat())
+            title.setTextSize(TypedValue.COMPLEX_UNIT_PX, posterSize(if (expanded) 24 else 19).toFloat())
+            description.setTextSize(TypedValue.COMPLEX_UNIT_PX, posterSize(14).toFloat())
+            description.maxLines = if (compactPosters) 2 else 3
             (title.layoutParams as LinearLayout.LayoutParams).topMargin = if (showHeading) size(5) else 0
             (description.layoutParams as LinearLayout.LayoutParams).topMargin = size(if (expanded) 9 else 7)
             copy.layoutParams = LayoutParams(-1, -2).apply {
                 marginStart = gap
-                marginEnd = gap
-                topMargin = size(when { showHeading -> 176; expanded -> 183; else -> 151 })
+                marginEnd = gap + if (compactPosters) size(29) else 0
+                topMargin = size(when {
+                    showHeading -> 176
+                    compactPosters && expanded -> 173
+                    expanded -> 183
+                    compactPosters -> 145
+                    else -> 151
+                })
             }
             arrow.setTextSize(TypedValue.COMPLEX_UNIT_PX, size(24).toFloat())
             arrow.background = rounded(context.getColor(R.color.dashboard_arrow), size(12))

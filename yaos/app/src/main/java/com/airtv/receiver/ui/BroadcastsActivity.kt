@@ -45,9 +45,10 @@ class BroadcastsActivity : Activity() {
         val metrics = resources.displayMetrics
         val scale = minOf(metrics.widthPixels / 960f, metrics.heightPixels / 540f)
         carousel = TvPosterCarousel(this, scale, dp(4), showDots = false, focusUpId = share.id, open = ::openBroadcast)
-        status = TvChrome.label(this, "", 14f, muted = true)
-        aceStatus = TvChrome.label(this, "", 13f, muted = true)
-        directoryStatus = TvChrome.label(this, "", 13f, muted = true)
+        val compact = resources.configuration.screenHeightDp < 440
+        status = TvChrome.label(this, "", if (compact) 12f else 14f, muted = true)
+        aceStatus = TvChrome.label(this, "", if (compact) 11f else 13f, muted = true)
+        directoryStatus = TvChrome.label(this, "", if (compact) 11f else 13f, muted = true)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(carousel, LinearLayout.LayoutParams(-1, 0, 1f))
