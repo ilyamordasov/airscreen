@@ -67,6 +67,7 @@
         <service
             android:name=".service.AirPlayService"
             android:exported="false"
+            android:stopWithTask="true"
             android:foregroundServiceType="connectedDevice|mediaPlayback" />
 
         <!-- Android permits systemExempted for active VPN apps; lint only recognizes
@@ -74,9 +75,11 @@
         <service
             android:name=".vpn.FreeCastVpnService"
             android:exported="false"
+            android:stopWithTask="true"
             android:permission="android.permission.BIND_VPN_SERVICE"
             android:foregroundServiceType="systemExempted"
             tools:ignore="ForegroundServicePermission">
+            <meta-data android:name="android.net.VpnService.SUPPORTS_ALWAYS_ON" android:value="false" />
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>

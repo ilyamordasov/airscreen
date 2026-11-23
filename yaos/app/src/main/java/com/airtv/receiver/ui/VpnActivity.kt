@@ -269,7 +269,7 @@ class VpnActivity : Activity() {
     }
 
     private fun stopVpn() {
-        stopService(Intent(this, FreeCastVpnService::class.java))
+        FreeCastVpnService.disconnect(this)
     }
 
     private fun isVpnRunning() = FreeCastVpnService.connectionState in
@@ -277,8 +277,9 @@ class VpnActivity : Activity() {
 
     private fun waitForVpnToStop() {
         val deadline = SystemClock.elapsedRealtime() + 8_000
-        while (isVpnRunning() && SystemClock.elapsedRealtime() < deadline) Thread.sleep(100)
-        check(!isVpnRunning()) { "VPN did not stop before testing" }
+        fun stopping() = isVpnRunning() || FreeCastVpnService.connectionState == FreeCastVpnService.State.STOPPING
+        while (stopping() && SystemClock.elapsedRealtime() < deadline) Thread.sleep(100)
+        check(!stopping()) { "VPN did not stop before testing" }
     }
 
     private fun downloadProfiles(value: String): List<VlessProfile> = try {

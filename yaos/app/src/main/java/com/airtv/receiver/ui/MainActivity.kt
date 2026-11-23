@@ -100,6 +100,7 @@ class MainActivity : Activity() {
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            if (!bound) return
             val local = binder as? AirPlayService.LocalBinder ?: return
             receiver?.removeListener(stateListener)
             service = local
@@ -113,6 +114,7 @@ class MainActivity : Activity() {
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            if (!bound) return
             receiver?.removeListener(stateListener)
             receiver = null
             service = null
@@ -184,7 +186,6 @@ class MainActivity : Activity() {
         })
 
         render(ReceiverState.Starting)
-        startAndBind()
         toggleButton.requestFocus()
         handlePanelIntent(intent)
     }
@@ -207,6 +208,11 @@ class MainActivity : Activity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        bindReceiver()
+    }
+
     override fun onResume() {
         super.onResume()
         resumed = true
@@ -219,21 +225,26 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
+    override fun onStop() {
+        receiver?.removeListener(stateListener)
+        receiver?.setSurface(null)
+        receiver = null
+        service = null
+        if (bound) runCatching { unbindService(connection) }
+        bound = false
+        super.onStop()
+    }
+
     override fun onDestroy() {
         uiHandler.removeCallbacksAndMessages(null)
         activeDialog?.dismiss()
         activeDialog = null
-        receiver?.removeListener(stateListener)
-        receiver?.setSurface(null)
-        if (bound) runCatching { unbindService(connection) }
-        bound = false
-        if (isFinishing) AirPlayService.stop(this)
         super.onDestroy()
     }
 
-    private fun startAndBind() {
+    private fun bindReceiver(restart: Boolean = false) {
         runCatching {
-            AirPlayService.start(this)
+            if (restart) AirPlayService.start(this)
             if (!bound) {
                 bound = bindService(
                     Intent(this, AirPlayService::class.java),
@@ -255,7 +266,7 @@ class MainActivity : Activity() {
         val local = service
         if (local == null) {
             render(ReceiverState.Starting)
-            startAndBind()
+            bindReceiver(restart = true)
             return
         }
         when (currentState) {
@@ -451,14 +462,14 @@ class MainActivity : Activity() {
             currentState is ReceiverState.Connecting ||
             currentState is ReceiverState.AudioOnly
         if (!active) {
-            finish()
+            finishAndRemoveTask()
             return
         }
         val dialog = AlertDialog.Builder(this, R.style.Theme_FreeCast_Dialog)
             .setTitle(R.string.exit_title)
             .setMessage(R.string.exit_message)
             .setNegativeButton(R.string.action_continue, null)
-            .setPositiveButton(R.string.action_exit) { _, _ -> finish() }
+            .setPositiveButton(R.string.action_exit) { _, _ -> finishAndRemoveTask() }
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus()
@@ -509,7 +520,7 @@ class MainActivity : Activity() {
                         if (local != null) local.applySettings(saved)
                         else {
                             pendingSettings = saved
-                            startAndBind()
+                            bindReceiver(restart = true)
                         }
                         updateReceiverInfo()
                     }.onFailure {

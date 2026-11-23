@@ -47,7 +47,6 @@ class AirPlayService : Service() {
     }
 
     private val binder = LocalBinder()
-    private val worker = Executors.newSingleThreadExecutor { Thread(it, "freecast-server") }
     private lateinit var receiver: AirPlayReceiver
     private var multicastLock: WifiManager.MulticastLock? = null
     @Volatile private var destroyed = false
@@ -111,6 +110,10 @@ class AirPlayService : Service() {
             startForeground(NOTIFICATION_ID, buildNotification(receiver.state))
             foreground = true
         }
+        if (!(application as FreeCastApplication).foregroundSession) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (intent?.action == ACTION_STOP) {
             binder.stopReceiver()
         } else {
@@ -153,7 +156,6 @@ class AirPlayService : Service() {
             receiver.setSurface(null)
             stopReceiverNow()
         }
-        worker.shutdown()
         foreground = false
         super.onDestroy()
     }
@@ -212,6 +214,8 @@ class AirPlayService : Service() {
         private const val CHANNEL_ID = "freecast_receiver"
         private const val NOTIFICATION_ID = 42
         private const val ACTION_STOP = "ru.freecast.tv.STOP"
+        // Native listeners share state across service instances; finish old teardown before starting again.
+        private val worker = Executors.newSingleThreadExecutor { Thread(it, "freecast-server") }
         fun start(context: Context) {
             val intent = Intent(context, AirPlayService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
