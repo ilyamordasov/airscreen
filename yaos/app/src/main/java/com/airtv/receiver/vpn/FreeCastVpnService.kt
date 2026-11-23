@@ -6,18 +6,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.LinkProperties
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.os.ParcelFileDescriptor
-import android.system.OsConstants
 import android.util.Log
 import androidx.annotation.MainThread
 import androidx.core.app.NotificationCompat
@@ -25,10 +17,9 @@ import androidx.core.content.ContextCompat
 import com.airtv.receiver.R
 import com.airtv.receiver.ui.MainActivity
 import io.nekohasekai.libbox.*
-import java.net.NetworkInterface as JavaNetworkInterface
 
 /** Per-app tunnel. The profile never leaves private app storage or enters diagnostics. */
-class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler {
+class FreeCastVpnService : VpnService() {
     internal enum class State(val label: String) {
         OFF("VPN выключен"),
         NO_PROFILE("Добавьте VLESS-подписку"),
@@ -39,8 +30,15 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
 
     private var command: CommandServer? = null
     private var tun: ParcelFileDescriptor? = null
-    private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
-    private var networkListener: ConnectivityManager.NetworkCallback? = null
+    private val platform by lazy {
+        object : AndroidBoxPlatform(this) {
+            override fun openTun(options: TunOptions): Int = establishTunnel(options)
+            override fun autoDetectInterfaceControl(fd: Int) {
+                check(protect(fd)) { "Unable to route socket outside the VPN" }
+            }
+            override fun serviceStop() { stopSelf() }
+        }
+    }
     @Volatile private var starting = false
     @Volatile private var destroyed = false
 
@@ -62,19 +60,8 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
         starting = true
         Thread {
             try {
-                val setup = SetupOptions().apply {
-                    basePath = filesDir.path
-                    workingPath = filesDir.path
-                    tempPath = cacheDir.path
-                    logMaxLines = 100
-                }
-                synchronized(FreeCastVpnService::class.java) {
-                    if (!initialized) {
-                        Libbox.setup(setup)
-                        initialized = true
-                    }
-                }
-                val next = CommandServer(this, this)
+                BoxRuntime.initialize(this)
+                val next = CommandServer(platform, platform)
                 next.start()
                 next.startOrReloadService(BoxConfig.create(profile), OverrideOptions().apply {
                     includePackage = StringList(listOf(packageName))
@@ -106,15 +93,14 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
         command = null
         tun?.close()
         tun = null
-        networkListener?.let { connectivity.unregisterNetworkCallback(it) }
-        networkListener = null
+        platform.closeMonitor()
         if (connectionState == State.CONNECTING || connectionState == State.CONNECTED) connectionState = State.OFF
         super.onDestroy()
     }
 
     override fun onRevoke() { stopSelf() }
 
-    override fun openTun(options: TunOptions): Int {
+    private fun establishTunnel(options: TunOptions): Int {
         check(prepare(this) == null) { "VPN permission missing" }
         val builder = Builder().setSession("FreeCast TV").setMtu(options.mtu)
         if (Build.VERSION.SDK_INT >= 29) builder.setMetered(false)
@@ -131,108 +117,6 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
         tun = descriptor
         return descriptor.fd
     }
-
-    override fun autoDetectInterfaceControl(fd: Int) {
-        check(protect(fd)) { "Unable to route socket outside the VPN" }
-    }
-    override fun usePlatformAutoDetectInterfaceControl() = true
-    override fun includeAllNetworks() = false
-    override fun underNetworkExtension() = false
-    override fun usePlatformBridge() = false
-    override fun usePlatformShell() = false
-    override fun useProcFS() = false
-    override fun localDNSTransport(): LocalDNSTransport? = null
-    override fun clearDNSCache() = Unit
-    override fun checkPlatformShell() = Unit
-    override fun createBridge(options: BridgeOptions): BridgeSession = error("Bridge unavailable")
-    override fun lookupSFTPServer() = ""
-    override fun lookupUser(username: String): PlatformUser = error("User lookup unavailable")
-    override fun openShellSession(user: PlatformUser, command: String, environ: StringIterator, term: String, rows: Int, cols: Int): ShellSession = error("Shell unavailable")
-    override fun readSystemSSHHostKey() = ""
-    override fun readWIFIState(): WIFIState? = null
-    override fun registerMyInterface(name: String) = Unit
-    override fun tailscaleHostname() = ""
-    override fun startNeighborMonitor(listener: NeighborUpdateListener) = Unit
-    override fun closeNeighborMonitor(listener: NeighborUpdateListener) = Unit
-    override fun sendNotification(notification: io.nekohasekai.libbox.Notification) = Unit
-    override fun cancelNotification(identifier: String, typeID: Int) = Unit
-    override fun findConnectionOwner(ipProtocol: Int, sourceAddress: String, sourcePort: Int, destinationAddress: String, destinationPort: Int): ConnectionOwner = error("Process lookup unavailable")
-
-    override fun getInterfaces(): NetworkInterfaceIterator {
-        val links = connectivity.allNetworks.mapNotNull(connectivity::getLinkProperties)
-            .associateBy { it.interfaceName }
-        val interfaces = JavaNetworkInterface.getNetworkInterfaces()?.toList().orEmpty().map { item ->
-            io.nekohasekai.libbox.NetworkInterface().apply {
-                name = item.name
-                index = item.index
-                mtu = item.mtu
-                if (links.containsKey(item.name) && item.isUp) {
-                    flags = OsConstants.IFF_UP or OsConstants.IFF_RUNNING
-                }
-                dnsServer = StringList(links[item.name]?.dnsServers.orEmpty().mapNotNull { it.hostAddress })
-                addresses = StringList(item.interfaceAddresses.mapNotNull { address ->
-                    val host = address.address.hostAddress?.substringBefore('%') ?: return@mapNotNull null
-                    "$host/${address.networkPrefixLength}"
-                })
-            }
-        }.iterator()
-        return object : NetworkInterfaceIterator {
-            override fun hasNext() = interfaces.hasNext()
-            override fun next() = interfaces.next()
-        }
-    }
-
-    override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
-        fun update(network: Network?, properties: LinkProperties?) {
-            val name = properties?.interfaceName.orEmpty()
-            val index = runCatching { JavaNetworkInterface.getByName(name)?.index }.getOrNull() ?: -1
-            val metered = network?.let { connectivity.getNetworkCapabilities(it)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == false } ?: false
-            listener.updateDefaultInterface(name, index, metered, false)
-        }
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
-            .build()
-        val active = connectivity.activeNetwork?.takeIf {
-            connectivity.getNetworkCapabilities(it)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN) == true
-        }
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            private var current = active
-
-            override fun onLinkPropertiesChanged(network: Network, properties: LinkProperties) {
-                current = network
-                update(network, properties)
-            }
-
-            override fun onLost(network: Network) {
-                if (network != current) return
-                current = null
-                update(null, null)
-            }
-        }
-        update(active, active?.let(connectivity::getLinkProperties))
-        when {
-            Build.VERSION.SDK_INT >= 31 -> connectivity.registerBestMatchingNetworkCallback(
-                request, callback, Handler(Looper.getMainLooper()),
-            )
-            Build.VERSION.SDK_INT >= 28 -> connectivity.requestNetwork(request, callback)
-            else -> connectivity.registerDefaultNetworkCallback(callback)
-        }
-        networkListener = callback
-    }
-
-    override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
-        networkListener?.let { connectivity.unregisterNetworkCallback(it) }
-        networkListener = null
-    }
-
-    override fun serviceReload() = Unit
-    override fun serviceStop() { stopSelf() }
-    override fun getSystemProxyStatus() = SystemProxyStatus().apply { available = false; enabled = false }
-    override fun setSystemProxyEnabled(enabled: Boolean) = Unit
-    override fun triggerNativeCrash() = Unit
-    override fun writeDebugMessage(message: String) = Unit
-    override fun connectSSHAgent() = -1
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -257,7 +141,6 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
         internal val state: String get() = connectionState.label
         @Volatile internal var connectionState = State.OFF
             private set
-        @Volatile private var initialized = false
 
         @MainThread
         internal fun connect(context: Context) {
@@ -271,12 +154,4 @@ class FreeCastVpnService : VpnService(), PlatformInterface, CommandServerHandler
             }
         }
     }
-}
-
-private class StringList(values: List<String>) : StringIterator {
-    private val iterator = values.iterator()
-    private val size = values.size
-    override fun hasNext() = iterator.hasNext()
-    override fun next() = iterator.next()
-    override fun len() = size
 }

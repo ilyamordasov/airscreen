@@ -19,6 +19,32 @@ class VlessProfileTest {
         assertFalse(expected.toString().contains(expected.uuid))
     }
 
+    @Test fun readsAllDistinctSupportedSubscriptionNodes() {
+        val second = link.replace("example.com:443", "second.example.com:8443")
+        val duplicate = link.substringBeforeLast('#') + "#Duplicate"
+        val unsupported = link.replace("type=tcp", "type=grpc")
+        val profiles = VlessProfile.profilesFromSubscription(listOf(unsupported, link, duplicate, second).joinToString("\n"))
+        assertEquals(listOf("example.com", "second.example.com"), profiles.map { it.server })
+    }
+
+    @Test fun probeConfigBindsLoopbackAndRoutesEachAuthenticatedUserToItsOwnNode() {
+        val first = VlessProfile.parse(link)
+        val second = first.copy(server = "second.example.com")
+        val config = JSONObject(BoxConfig.probe(listOf(first, second), 18080, "test-password"))
+        val inbound = config.getJSONArray("inbounds").getJSONObject(0)
+        val rules = config.getJSONObject("route").getJSONArray("rules")
+        assertEquals("127.0.0.1", inbound.getString("listen"))
+        for (index in 0..1) {
+            val auth = inbound.getJSONArray("users").getJSONObject(index)
+            val rule = rules.getJSONObject(index)
+            val outbound = config.getJSONArray("outbounds").getJSONObject(index)
+            assertEquals("test-password", auth.getString("password"))
+            assertEquals(auth.getString("username"), rule.getString("auth_user"))
+            assertEquals(outbound.getString("tag"), rule.getString("outbound"))
+        }
+        assertEquals("reject", rules.getJSONObject(2).getString("action"))
+    }
+
     @Test fun rejectsUnsupportedAndMissingValues() {
         assertThrows(IllegalArgumentException::class.java) { VlessProfile.parse(link.replace("type=tcp", "type=grpc")) }
         assertThrows(IllegalArgumentException::class.java) { VlessProfile.parse(link.replace("pbk=publicKey", "pbk=")) }

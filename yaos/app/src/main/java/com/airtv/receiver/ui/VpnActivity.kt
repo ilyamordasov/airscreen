@@ -8,13 +8,19 @@ import android.net.VpnService
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.util.Log
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
+import com.airtv.receiver.vpn.CheckedProxy
 import com.airtv.receiver.vpn.FreeCastVpnService
+import com.airtv.receiver.vpn.ProxyScanner
 import com.airtv.receiver.vpn.VlessProfile
 import com.airtv.receiver.vpn.VpnImportServer
 import com.airtv.receiver.vpn.VpnProfileStore
@@ -26,6 +32,7 @@ import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.net.URL
 import java.security.SecureRandom
+import java.util.concurrent.Executors
 import javax.net.ssl.HttpsURLConnection
 import kotlin.math.roundToInt
 
@@ -35,7 +42,12 @@ class VpnActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var profileStatus: TextView
     private lateinit var importStatus: TextView
+    private lateinit var proxyRows: LinearLayout
+    private lateinit var importPanel: LinearLayout
+    private lateinit var actions: LinearLayout
     private val handler = Handler(Looper.getMainLooper())
+    private val worker = Executors.newSingleThreadExecutor()
+    private var busy = false
     private val refresh = object : Runnable {
         override fun run() {
             status.text = FreeCastVpnService.state
@@ -58,28 +70,32 @@ class VpnActivity : Activity() {
         info.addView(importStatus)
         root.addView(info, LinearLayout.LayoutParams(-1, -2))
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        root.addView(row, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(16) })
+        importPanel = row
         val qr = ImageView(this).apply { setBackgroundColor(Color.WHITE); setPadding(dp(8), dp(8), dp(8), dp(8)) }
         row.addView(qr, LinearLayout.LayoutParams(dp(220), dp(220)))
         val instructions = label("", 18f)
         val instructionPanel = TvChrome.panel(this)
         instructionPanel.addView(instructions)
         row.addView(instructionPanel, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(20) })
-        val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        root.addView(buttons)
-        buttons.addView(TvChrome.action(this, "Подключить", true).apply {
-            setOnClickListener { connect() }
-        }, LinearLayout.LayoutParams(0, dp(58), 1f))
-        buttons.addView(TvChrome.action(this, "Отключить").apply {
-            setOnClickListener { stopService(Intent(this@VpnActivity, FreeCastVpnService::class.java)) }
-        }, LinearLayout.LayoutParams(0, dp(58), 1f).apply { leftMargin = dp(12) })
-        buttons.addView(TvChrome.action(this, "Удалить профиль").apply {
-            setOnClickListener {
-                stopService(Intent(this@VpnActivity, FreeCastVpnService::class.java))
-                VpnProfileStore.clear(this@VpnActivity)
-                profileStatus.text = profileLabel()
-            }
-        }, LinearLayout.LayoutParams(0, dp(58), 1f).apply { leftMargin = dp(12) })
+        instructionPanel.addView(TvChrome.action(this, "Удалить профиль").apply {
+            setOnClickListener { if (!busy) deleteProfile() }
+        })
+        actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        root.addView(actions, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+        addAction("Обновить прокси", primary = true, action = ::updateProxies)
+        addAction("Подключить", action = ::connect)
+        addAction("Отключить", action = ::stopVpn)
+        addAction("Импорт по QR") { showImport(importPanel.visibility != View.VISIBLE) }
+        proxyRows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val scroll = ScrollView(this).apply {
+            addView(LinearLayout(this@VpnActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(proxyRows)
+                addView(row)
+            })
+        }
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(12) })
+        renderProxies(VpnProfileStore.proxies(this))
         setContentView(TvChrome.page(this, TvChrome.Section.VPN, "FREECAST • СЕТЬ", "VPN",
             "Подключение только для FreeCast TV", root))
 
@@ -93,7 +109,7 @@ class VpnActivity : Activity() {
         try {
             server = VpnImportServer(token) { value -> import(value) }.also { it.start(NanoHTTPD.SOCKET_READ_TIMEOUT, true) }
             qr.setImageBitmap(qrBitmap(url))
-            instructions.text = "На iPhone откройте QR-код, вставьте ссылку подписки или vless:// ссылку и введите код $token.\n\nПодписка хранится только на ТВ. После импорта нажмите «Подключить» и разрешите VPN в Android."
+            instructions.text = "Откройте QR-код на телефоне, вставьте ссылку подписки или vless:// и введите код $token."
         } catch (_: Exception) {
             server?.stop()
             server = null
@@ -103,19 +119,31 @@ class VpnActivity : Activity() {
 
     override fun onResume() { super.onResume(); handler.post(refresh) }
     override fun onPause() { handler.removeCallbacks(refresh); super.onPause() }
-    override fun onDestroy() { server?.stop(); server = null; super.onDestroy() }
+    override fun onDestroy() {
+        worker.shutdownNow()
+        handler.removeCallbacksAndMessages(null)
+        server?.stop()
+        server = null
+        super.onDestroy()
+    }
 
-    private fun import(value: String) {
-        runOnUiThread { importStatus.text = "Загружаем профиль…" }
-        Thread {
+    private fun import(value: String) = runOnUiThread {
+        if (isDestroyed || busy) return@runOnUiThread
+        setBusy(true)
+        importStatus.text = "Загружаем профиль…"
+        worker.execute {
             try {
-                val profile = if (value.startsWith("vless://")) VlessProfile.parse(value) else downloadProfile(value)
-                stopService(Intent(this, FreeCastVpnService::class.java))
-                VpnProfileStore.save(this, profile)
+                val source = value.takeUnless { it.startsWith("vless://") }
+                val profile = if (source == null) VlessProfile.parse(value) else downloadProfiles(source).first()
                 runOnUiThread {
                     if (!isDestroyed) {
-                        profileStatus.text = profileLabel()
-                        importStatus.text = "Профиль сохранён. Нажмите «Подключить»."
+                        runCatching { VpnProfileStore.saveImport(this, profile, source) }.onSuccess {
+                            stopVpn()
+                            profileStatus.text = profileLabel()
+                            renderProxies(emptyList())
+                            importStatus.text = if (source == null) "Профиль сохранён."
+                                else "Подписка сохранена. Обновите список прокси."
+                        }.onFailure { importStatus.text = "Не удалось сохранить профиль." }
                     }
                 }
             } catch (error: Exception) {
@@ -127,14 +155,136 @@ class VpnActivity : Activity() {
                         else -> "Не удалось импортировать профиль. Проверьте ссылку и формат."
                     }
                 }
+            } finally {
+                runOnUiThread { if (!isDestroyed) setBusy(false) }
             }
-        }.start()
+        }
     }
 
-    private fun downloadProfile(value: String): VlessProfile = try {
-        VlessProfile.fromSubscription(download(value, userAgent = "v2rayNG/1.10.23"))
+    private fun updateProxies() {
+        if (busy) return
+        val source = VpnProfileStore.subscription(this)
+        if (source == null) {
+            importStatus.text = "Добавьте ссылку подписки через QR-код."
+            showImport(true)
+            return
+        }
+        val restoreVpn = isVpnRunning()
+        if (restoreVpn) stopVpn()
+        setBusy(true)
+        importStatus.text = "Обновляем подписку…"
+        worker.execute {
+            val result = runCatching {
+                waitForVpnToStop()
+                val profiles = downloadProfiles(source)
+                ProxyScanner(applicationContext).scan(profiles) { checked, total ->
+                    handler.post {
+                        if (!isDestroyed) importStatus.text = "Проверяем доступ к TVCrate: $checked из $total"
+                    }
+                }
+            }
+            handler.post {
+                if (!isDestroyed) {
+                    result.mapCatching { ranked ->
+                        VpnProfileStore.saveProxies(this, ranked)
+                        ranked
+                    }.onSuccess { ranked ->
+                        profileStatus.text = profileLabel()
+                        renderProxies(ranked)
+                        importStatus.text = if (ranked.isEmpty()) "TVCrate недоступен через узлы подписки."
+                            else "Доступны: ${ranked.size}. Выбран узел с наименьшей задержкой."
+                    }.onFailure { error ->
+                        Log.w(TAG, "Proxy refresh failed: " + error.javaClass.simpleName)
+                        importStatus.text = "Не удалось обновить прокси. Повторите попытку."
+                    }
+                    setBusy(false)
+                }
+                if (restoreVpn && VpnService.prepare(applicationContext) == null) {
+                    FreeCastVpnService.connect(applicationContext)
+                }
+            }
+        }
+    }
+
+    private fun renderProxies(proxies: List<CheckedProxy>) {
+        val selected = VpnProfileStore.load(this)
+        proxyRows.removeAllViews()
+        proxies.forEachIndexed { index, proxy ->
+            val name = proxy.profile.name.take(85)
+            val suffix = if (proxy.profile == selected) " · выбран" else ""
+            proxyRows.addView(TvChrome.action(this, "${index + 1}. $name · ${proxy.latencyMillis} мс$suffix").apply {
+                gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                setOnClickListener { if (!busy) selectProxy(proxy, proxies) }
+            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+        }
+        showImport(proxies.isEmpty())
+    }
+
+    private fun selectProxy(proxy: CheckedProxy, proxies: List<CheckedProxy>) {
+        if (runCatching { VpnProfileStore.save(this, proxy.profile) }.isFailure) {
+            importStatus.text = "Не удалось сохранить выбранный узел."
+            return
+        }
+        val restoreVpn = isVpnRunning()
+        if (restoreVpn) stopVpn()
+        profileStatus.text = profileLabel()
+        renderProxies(proxies)
+        importStatus.text = "Узел выбран."
+        if (restoreVpn) {
+            setBusy(true)
+            worker.execute {
+                val stopped = runCatching { waitForVpnToStop() }.isSuccess
+                handler.post {
+                    if (!isDestroyed) {
+                        setBusy(false)
+                        if (stopped) connect() else importStatus.text = "Повторите подключение VPN."
+                    }
+                }
+            }
+        }
+    }
+
+    private fun addAction(title: String, primary: Boolean = false, action: () -> Unit) {
+        actions.addView(TvChrome.action(this, title, primary).apply {
+            setOnClickListener { if (!busy) action() }
+        }, LinearLayout.LayoutParams(0, dp(58), 1f).apply { if (actions.childCount > 0) leftMargin = dp(10) })
+    }
+
+    private fun showImport(show: Boolean) {
+        importPanel.visibility = if (show) View.VISIBLE else View.GONE
+        proxyRows.visibility = if (show) View.GONE else View.VISIBLE
+    }
+
+    private fun setBusy(value: Boolean) {
+        busy = value
+        for (i in 0 until actions.childCount) actions.getChildAt(i).isEnabled = !value
+    }
+
+    private fun deleteProfile() {
+        stopVpn()
+        VpnProfileStore.clear(this)
+        profileStatus.text = profileLabel()
+        importStatus.text = ""
+        renderProxies(emptyList())
+    }
+
+    private fun stopVpn() {
+        stopService(Intent(this, FreeCastVpnService::class.java))
+    }
+
+    private fun isVpnRunning() = FreeCastVpnService.connectionState in
+        setOf(FreeCastVpnService.State.CONNECTING, FreeCastVpnService.State.CONNECTED)
+
+    private fun waitForVpnToStop() {
+        val deadline = SystemClock.elapsedRealtime() + 8_000
+        while (isVpnRunning() && SystemClock.elapsedRealtime() < deadline) Thread.sleep(100)
+        check(!isVpnRunning()) { "VPN did not stop before testing" }
+    }
+
+    private fun downloadProfiles(value: String): List<VlessProfile> = try {
+        VlessProfile.profilesFromSubscription(download(value, userAgent = "v2rayNG/1.10.23"))
     } catch (_: IllegalArgumentException) {
-        VlessProfile.fromSubscription(download(value))
+        VlessProfile.profilesFromSubscription(download(value))
     }
 
     private fun download(value: String, userAgent: String? = null): String {
@@ -202,5 +352,8 @@ class VpnActivity : Activity() {
             ?.hostAddress
     }.getOrNull()
 
-    companion object { private const val VPN_PERMISSION_REQUEST = 814 }
+    companion object {
+        private const val VPN_PERMISSION_REQUEST = 814
+        private const val TAG = "VpnActivity"
+    }
 }

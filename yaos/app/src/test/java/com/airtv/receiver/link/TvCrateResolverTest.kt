@@ -1,5 +1,6 @@
 package com.airtv.receiver.link
 
+import com.airtv.receiver.vpn.checkTvCrate
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.IOException
@@ -41,6 +42,31 @@ class TvCrateResolverTest {
     private fun expectIo(block: () -> Unit): IOException {
         try { block() } catch (error: IOException) { return error }
         throw AssertionError("Expected IOException")
+    }
+
+    @Test fun `proxy check follows the master playlist and measures the channel response`() {
+        val http = transport()
+        val headers = mutableListOf<Map<String, String>>()
+        val withPlaylists = TvCrateTransport { url, request ->
+            if (!url.startsWith("https://edge1.tvcrate.com/")) http.get(url, request)
+            else {
+                headers += request
+                if (url == media) TvCrateResponse(200, "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=100\nvideo.m3u8")
+                else TvCrateResponse(200, "#EXTM3U\n#EXTINF:4,\nsegment.ts")
+            }
+        }
+        var tick = 0L
+        assertEquals(45L, checkTvCrate(withPlaylists, { tick.also { tick += 45_000_000 } }, { now }))
+        assertEquals(2, headers.size)
+        assertTrue(headers.all { it["Referer"] == player && it["Origin"] == TvCrateResolver.ORIGIN })
+    }
+
+    @Test fun `proxy check rejects a node whose HLS request is denied`() {
+        val http = transport()
+        val denied = TvCrateTransport { url, headers ->
+            if (url == media) TvCrateResponse(403, "") else http.get(url, headers)
+        }
+        expectIo { checkTvCrate(denied, nowSeconds = { now }) }
     }
 
     @Test fun `resolves the observed channel iframe and native HLS API`() {

@@ -31,7 +31,9 @@ data class VlessProfile(
     companion object {
         internal const val MAX_SUBSCRIPTION_BYTES = 2 * 1024 * 1024
 
-        fun fromSubscription(content: String): VlessProfile {
+        fun fromSubscription(content: String): VlessProfile = profilesFromSubscription(content).first()
+
+        internal fun profilesFromSubscription(content: String): List<VlessProfile> {
             require(content.length <= MAX_SUBSCRIPTION_BYTES) { "Подписка слишком большая" }
             val plain = content.trim().removePrefix("\uFEFF").trimStart()
             if (plain.startsWith('[') || plain.startsWith('{')) return fromXraySubscription(plain)
@@ -41,12 +43,11 @@ data class VlessProfile(
                     String(decodeBase64(compact), StandardCharsets.UTF_8)
                 }.getOrElse { throw IllegalArgumentException("Подписка не содержит VLESS-ссылок") }
             }
-            val link = candidate.lineSequence().map(String::trim).firstOrNull { it.startsWith("vless://") }
-                ?: throw IllegalArgumentException("Подписка не содержит VLESS-ссылок")
-            return parse(link)
+            return candidate.lineSequence().map(String::trim).filter { it.startsWith("vless://") }
+                .mapNotNull { runCatching { parse(it) }.getOrNull() }.uniqueProfiles()
         }
 
-        private fun fromXraySubscription(content: String): VlessProfile {
+        private fun fromXraySubscription(content: String): List<VlessProfile> {
             val document = runCatching { JSONTokener(content).nextValue() }.getOrNull()
             val configs = when (document) {
                 is JSONArray -> document.objects()
@@ -57,8 +58,13 @@ data class VlessProfile(
                 config.optJSONArray("outbounds").objects().flatMap { outbound ->
                     xrayProfiles(outbound, config.optString("remarks"))
                 }
-            }.firstOrNull() ?: throw IllegalArgumentException("Подписка не содержит совместимых профилей VLESS")
+            }.uniqueProfiles()
         }
+
+        private fun Sequence<VlessProfile>.uniqueProfiles(): List<VlessProfile> =
+            distinctBy { it.copy(name = "") }.toList().also {
+                require(it.isNotEmpty()) { "Подписка не содержит совместимых профилей VLESS" }
+            }
 
         private fun xrayProfiles(outbound: JSONObject, remarks: String): Sequence<VlessProfile> {
             val stream = outbound.optJSONObject("streamSettings")

@@ -5,10 +5,9 @@ import org.json.JSONObject
 
 /** Builds the minimal sing-box configuration; no profile JSON is ever written to logs. */
 object BoxConfig {
-    fun create(profile: VlessProfile): String {
-        val outbound = JSONObject().apply {
+    private fun outbound(profile: VlessProfile, tag: String) = JSONObject().apply {
             put("type", "vless")
-            put("tag", "proxy")
+            put("tag", tag)
             put("server", profile.server)
             put("server_port", profile.port)
             put("uuid", profile.uuid)
@@ -41,7 +40,9 @@ object BoxConfig {
                     profile.host?.let { put("headers", JSONObject().put("Host", it)) }
                 })
             }
-        }
+    }
+
+    fun create(profile: VlessProfile): String {
         return JSONObject().apply {
             put("log", JSONObject().put("level", "warn"))
             put("dns", JSONObject().apply {
@@ -59,7 +60,7 @@ object BoxConfig {
                 put("dns_mode", "hijack")
                 put("mtu", 1400)
             }))
-            put("outbounds", JSONArray().put(outbound).put(JSONObject().put("type", "direct").put("tag", "direct")))
+            put("outbounds", JSONArray().put(outbound(profile, "proxy")).put(JSONObject().put("type", "direct").put("tag", "direct")))
             put("route", JSONObject().apply {
                 put("auto_detect_interface", true)
                 put("rules", JSONArray()
@@ -70,5 +71,29 @@ object BoxConfig {
                 put("default_domain_resolver", "bootstrap")
             })
         }.toString()
+    }
+
+    internal fun probe(profiles: List<VlessProfile>, port: Int, password: String): String {
+        val users = JSONArray()
+        val outbounds = JSONArray()
+        val rules = JSONArray()
+        profiles.forEachIndexed { index, profile ->
+            val tag = "probe-$index"
+            users.put(JSONObject().put("username", tag).put("password", password))
+            outbounds.put(outbound(profile, tag))
+            rules.put(JSONObject().put("auth_user", tag).put("action", "route").put("outbound", tag))
+        }
+        rules.put(JSONObject().put("action", "reject"))
+        return JSONObject()
+            .put("log", JSONObject().put("disabled", true))
+            .put("dns", JSONObject().put("servers", JSONArray().put(
+                JSONObject().put("type", "local").put("tag", "bootstrap"),
+            )))
+            .put("inbounds", JSONArray().put(JSONObject().put("type", "mixed").put("listen", "127.0.0.1")
+                .put("listen_port", port).put("users", users)))
+            .put("outbounds", outbounds)
+            .put("route", JSONObject().put("rules", rules).put("auto_detect_interface", true)
+                .put("default_domain_resolver", "bootstrap"))
+            .toString()
     }
 }
