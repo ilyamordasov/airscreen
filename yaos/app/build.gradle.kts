@@ -7,6 +7,8 @@ plugins {
 //   ./gradlew assembleRelease -PversionName=1.0.0 -PversionCode=10000
 val appVersionName = (findProperty("versionName") as String?) ?: "0.1.0"
 val appVersionCode = (findProperty("versionCode") as String?)?.toInt() ?: 100
+val embeddedAceDir = providers.gradleProperty("embeddedAceDir").orNull?.let(::file)
+val embeddedAce = embeddedAceDir != null
 
 android {
     namespace = "com.airtv.receiver"
@@ -19,10 +21,12 @@ android {
         targetSdk = 34
         versionCode = appVersionCode
         versionName = appVersionName
+        manifestPlaceholders["appLabel"] = "@string/app_name"
+        buildConfigField("boolean", "EMBEDDED_ACE", embeddedAce.toString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            abiFilters += if (embeddedAce) listOf("arm64-v8a") else listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
         externalNativeBuild {
             cmake {
@@ -69,12 +73,30 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (embeddedAce) {
+                applicationIdSuffix = ".ace"
+                resValue("string", "local_ace_app_name", "AirScreen · Ace")
+                manifestPlaceholders["appLabel"] = "@string/local_ace_app_name"
+            }
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Release builds must use the owner's stable key, never an incidental debug key.
             signingConfig = signingConfigs.findByName("release")
+        }
+    }
+
+    if (embeddedAceDir != null) {
+        check(embeddedAceDir.resolve("jniLibs/arm64-v8a/libacepython.so").isFile) {
+            "Prepare embeddedAceDir with prepare-embedded-ace.py first."
+        }
+        sourceSets.getByName("debug").apply {
+            assets.srcDir(embeddedAceDir.resolve("assets"))
+            assets.srcDir("src/embeddedAce/assets")
+            jniLibs.srcDir(embeddedAceDir.resolve("jniLibs"))
         }
     }
 
@@ -122,6 +144,7 @@ dependencies {
 tasks.configureEach {
     if (name == "packageRelease" || name == "bundleRelease") {
         doFirst {
+            check(!embeddedAce) { "The embedded Ace Stream build is available for local debug packaging only." }
             check(android.signingConfigs.findByName("release") != null) {
                 "Set SIGNING_KEYSTORE, SIGNING_KEYSTORE_PASSWORD and SIGNING_KEY_ALIAS for release signing."
             }

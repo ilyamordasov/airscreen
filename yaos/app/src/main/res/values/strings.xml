@@ -155,6 +155,8 @@
     <string name="broadcast_guide_minutes">Сейчас · осталось %1$d мин</string>
     <string name="broadcast_guide_hours">Сейчас · осталось %1$d ч %2$d мин</string>
     <string name="broadcast_guide_unavailable">Программа недоступна</string>
+    <string name="ace_embedded_unavailable">Не удалось открыть P2P-эфир. Попробуйте другой вариант.</string>
+    <string name="ace_search_unavailable">Не удалось загрузить результаты поиска Ace Stream.</string>
     <string name="broadcast_guide_loading">Загружаем программу…</string>
     <string name="broadcast_guide_no_next">Нет данных</string>
     <string name="vpn_stop_core">Остановить VPN</string>

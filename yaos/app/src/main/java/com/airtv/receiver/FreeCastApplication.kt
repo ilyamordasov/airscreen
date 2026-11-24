@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.airtv.receiver.link.AceStreamEngine
 import com.airtv.receiver.service.AirPlayService
 import com.airtv.receiver.ui.BroadcastWebActivity
 import com.airtv.receiver.vpn.FreeCastVpnService
@@ -25,6 +26,7 @@ class FreeCastApplication : Application(), Application.ActivityLifecycleCallback
         foregroundSession = null
         AirPlayService.stop(this)
         FreeCastVpnService.disconnect(this)
+        AceStreamEngine.stop()
     }
 
     override fun onCreate() {

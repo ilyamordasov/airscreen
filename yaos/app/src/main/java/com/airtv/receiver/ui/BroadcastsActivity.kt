@@ -16,7 +16,9 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import com.airtv.receiver.BuildConfig
 import com.airtv.receiver.R
+import com.airtv.receiver.link.AceStreamEngine
 import com.airtv.receiver.link.ProgrammeGuide
 import com.airtv.receiver.link.ProgrammeGuideClient
 import com.airtv.receiver.link.ProgrammeGuideClient.Channel
@@ -275,9 +277,9 @@ class BroadcastsActivity : Activity() {
     private fun loadAceStreams(generation: Int) {
         Thread {
             val result = runCatching {
+                val port = AceStreamEngine.port(this)
                 listOf("Спартак", "Матч Премьер").flatMap { query ->
-                    val url = "http://localhost:6878/search?query=${Uri.encode(query)}&page_size=20"
-                    val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                    val connection = AceStreamEngine.connection(port, "/search?query=${Uri.encode(query)}&page_size=20").apply {
                         connectTimeout = 2_000
                         readTimeout = 3_000
                     }
@@ -313,7 +315,8 @@ class BroadcastsActivity : Activity() {
                     aceStatus.text = if (streams.isEmpty()) "Ace Stream: эфиры «Спартака» не найдены." else
                         "Ace Stream: ${streams.size} P2P-эфиров"
                 }.onFailure {
-                    aceStatus.text = "Для поиска P2P установите и запустите Ace Stream Engine на ТВ."
+                    aceStatus.text = if (BuildConfig.EMBEDDED_ACE) getString(R.string.ace_search_unavailable)
+                        else "Для поиска P2P установите и запустите Ace Stream Engine на ТВ."
                 }
             }
         }.start()
@@ -328,8 +331,9 @@ class BroadcastsActivity : Activity() {
         Toast.makeText(this, "Открываем Ace Stream…", Toast.LENGTH_SHORT).show()
         Thread {
             val contentId = runCatching {
-                val url = "http://localhost:6878/server/api?api_version=3&method=get_content_id&infohash=$infohash"
-                val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                val port = AceStreamEngine.port(this)
+                val connection = AceStreamEngine.connection(port,
+                    "/server/api?api_version=3&method=get_content_id&infohash=$infohash").apply {
                     connectTimeout = 2_000
                     readTimeout = 3_000
                 }

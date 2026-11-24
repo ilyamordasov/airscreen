@@ -9,7 +9,9 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.VideoView
+import com.airtv.receiver.BuildConfig
 import com.airtv.receiver.R
+import com.airtv.receiver.link.AceStreamEngine
 import java.net.HttpURLConnection
 import java.net.URL
 import org.json.JSONObject
@@ -61,8 +63,8 @@ class AcePlaybackActivity : Activity() {
         }
         Thread {
             val result = runCatching {
-                val endpoint = "http://127.0.0.1:6878/ace/manifest.m3u8?format=json&content_id=$contentId"
-                val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                val port = AceStreamEngine.port(this)
+                val connection = AceStreamEngine.connection(port, "/ace/manifest.m3u8?format=json&content_id=$contentId").apply {
                     connectTimeout = 5_000
                     readTimeout = 15_000
                 }
@@ -73,8 +75,8 @@ class AcePlaybackActivity : Activity() {
                     val playback = response.getJSONObject("response")
                     val streamUrl = playback.getString("playback_url")
                     val commandUrl = playback.optString("command_url")
-                    require(isLocalAceUrl(streamUrl)) { "Ace Engine вернул посторонний адрес видео" }
-                    require(commandUrl.isEmpty() || isLocalAceUrl(commandUrl)) {
+                    require(isLocalAceUrl(streamUrl, port)) { "Ace Engine вернул посторонний адрес видео" }
+                    require(commandUrl.isEmpty() || isLocalAceUrl(commandUrl, port)) {
                         "Ace Engine вернул посторонний адрес управления"
                     }
                     streamUrl to commandUrl
@@ -89,7 +91,8 @@ class AcePlaybackActivity : Activity() {
                     video.setVideoURI(Uri.parse(streamUrl))
                     video.requestFocus()
                 }.onFailure {
-                    status.text = "Не удалось открыть эфир в AirScreen. Запустите Ace Stream Engine: ${it.localizedMessage.orEmpty()}"
+                    status.text = if (BuildConfig.EMBEDDED_ACE) getString(R.string.ace_embedded_unavailable)
+                        else "Не удалось открыть эфир в AirScreen. Запустите Ace Stream Engine: ${it.localizedMessage.orEmpty()}"
                 }
             }
         }.start()
@@ -113,10 +116,10 @@ class AcePlaybackActivity : Activity() {
         super.onDestroy()
     }
 
-    private fun isLocalAceUrl(value: String): Boolean {
+    private fun isLocalAceUrl(value: String, port: Int): Boolean {
         val uri = Uri.parse(value)
         return uri.scheme == "http" && uri.host in setOf("127.0.0.1", "localhost") &&
-            uri.port == 6878 && uri.path?.startsWith("/ace/") == true
+            uri.port == port && uri.path?.startsWith("/ace/") == true
     }
 
     companion object {
