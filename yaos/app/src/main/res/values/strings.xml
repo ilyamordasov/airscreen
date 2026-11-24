@@ -67,6 +67,16 @@
     <string name="update_allow_install">Разрешите AirScreen установку приложений, затем вернитесь сюда.</string>
     <string name="update_installer_missing">На телевизоре не найден установщик APK.</string>
     <string name="update_error">Не удалось обновить: %1$s</string>
+    <string name="update_local_action">Установить APK по сети</string>
+    <string name="update_local_qr">QR-код обновления AirScreen</string>
+    <string name="update_local_help">Откройте адрес на компьютере или отсканируйте QR-код телефоном. Выберите APK и введите код с ТВ.</string>
+    <string name="update_local_back">К обновлениям</string>
+    <string name="update_local_server_error">Не удалось открыть приём обновления. Повторите попытку.</string>
+    <string name="update_invalid_apk">Android не распознал APK.</string>
+    <string name="update_wrong_package">APK принадлежит другому приложению.</string>
+    <string name="update_wrong_version">Версия APK не совпадает с релизом.</string>
+    <string name="update_old_apk">Этот APK той же версии или старее установленной.</string>
+    <string name="update_wrong_signer">APK подписан другим ключом.</string>
     <string name="action_resume">К трансляции</string>
     <string name="action_exit">Выйти</string>
     <string name="action_continue">Продолжить</string>

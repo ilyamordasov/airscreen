@@ -9,6 +9,10 @@ val appVersionName = (findProperty("versionName") as String?) ?: "0.1.0"
 val appVersionCode = (findProperty("versionCode") as String?)?.toInt() ?: 100
 val embeddedAceDir = providers.gradleProperty("embeddedAceDir").orNull?.let(::file)
 val embeddedAce = embeddedAceDir != null
+val embeddedAceRelease = providers.gradleProperty("embeddedAceRelease").orNull == "true"
+check(!embeddedAceRelease || (embeddedAce && System.getenv("GITHUB_ACTIONS") != "true")) {
+    "An embedded Ace Stream release requires a local payload and local signing."
+}
 
 android {
     namespace = "com.airtv.receiver"
@@ -74,7 +78,7 @@ android {
 
     buildTypes {
         debug {
-            if (embeddedAce) {
+            if (embeddedAce && !embeddedAceRelease) {
                 applicationIdSuffix = ".ace"
                 resValue("string", "local_ace_app_name", "AirScreen · Ace")
                 manifestPlaceholders["appLabel"] = "@string/local_ace_app_name"
@@ -93,7 +97,7 @@ android {
         check(embeddedAceDir.resolve("jniLibs/arm64-v8a/libacepython.so").isFile) {
             "Prepare embeddedAceDir with prepare-embedded-ace.py first."
         }
-        sourceSets.getByName("debug").apply {
+        sourceSets.getByName(if (embeddedAceRelease) "release" else "debug").apply {
             assets.srcDir(embeddedAceDir.resolve("assets"))
             assets.srcDir("src/embeddedAce/assets")
             jniLibs.srcDir(embeddedAceDir.resolve("jniLibs"))
@@ -144,7 +148,7 @@ dependencies {
 tasks.configureEach {
     if (name == "packageRelease" || name == "bundleRelease") {
         doFirst {
-            check(!embeddedAce) { "The embedded Ace Stream build is available for local debug packaging only." }
+            check(!embeddedAce || embeddedAceRelease) { "Use the explicit local embedded release option." }
             check(android.signingConfigs.findByName("release") != null) {
                 "Set SIGNING_KEYSTORE, SIGNING_KEYSTORE_PASSWORD and SIGNING_KEY_ALIAS for release signing."
             }

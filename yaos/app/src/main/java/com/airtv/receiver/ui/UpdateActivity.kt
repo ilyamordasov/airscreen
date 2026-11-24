@@ -4,24 +4,30 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Intent
-import android.graphics.Color
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
-import android.view.ViewGroup
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.content.FileProvider
 import com.airtv.receiver.BuildConfig
 import com.airtv.receiver.R
+import com.airtv.receiver.update.LocalUpdateServer
 import com.airtv.receiver.update.ReleaseClient
 import com.airtv.receiver.update.ReleaseInfo
 import com.airtv.receiver.update.ReleaseVersion
+import fi.iki.elonen.NanoHTTPD
 import java.io.File
+import java.security.SecureRandom
 import kotlin.math.roundToInt
 
 /** Downloads a signed GitHub Release and hands it to the TV's package installer. */
@@ -29,6 +35,12 @@ class UpdateActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var progress: ProgressBar
     private lateinit var action: Button
+    private lateinit var localAction: Button
+    private lateinit var content: FrameLayout
+    private lateinit var overview: LinearLayout
+    private var localServer: LocalUpdateServer? = null
+    private var localPanel: TvPairingPanel? = null
+    private val main = Handler(Looper.getMainLooper())
     private var release: ReleaseInfo? = null
     private var downloaded: File? = null
     private var pendingInstall = false
@@ -49,7 +61,10 @@ class UpdateActivity : Activity() {
                 if (release == null) checkLatest() else downloadAndInstall()
             }
         }
-        val root = LinearLayout(this).apply {
+        localAction = TvChrome.action(this, getString(R.string.update_local_action)).apply {
+            setOnClickListener { openLocalUpdate() }
+        }
+        overview = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
         }
@@ -61,10 +76,14 @@ class UpdateActivity : Activity() {
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         panel.addView(status, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) })
         panel.addView(progress, LinearLayout.LayoutParams(-1, dp(20)).apply { topMargin = dp(24) })
-        root.addView(panel, LinearLayout.LayoutParams(-1, -2))
-        root.addView(action, LinearLayout.LayoutParams(dp(260), dp(60)).apply { topMargin = dp(20) })
+        overview.addView(panel, LinearLayout.LayoutParams(-1, -2))
+        overview.addView(LinearLayout(this).apply {
+            addView(action, LinearLayout.LayoutParams(0, dp(60), 1f))
+            addView(localAction, LinearLayout.LayoutParams(0, dp(60), 1f).apply { marginStart = dp(12) })
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) })
+        content = FrameLayout(this).apply { addView(overview, FrameLayout.LayoutParams(-1, -1)) }
         setContentView(TvChrome.page(this, TvChrome.Section.UPDATES,
-            "Обновления", "Установка новой версии по сети", root))
+            "Обновления", "Установка новой версии по сети", content, onBack = ::goBack))
         action.requestFocus()
         checkLatest()
     }
@@ -79,7 +98,67 @@ class UpdateActivity : Activity() {
 
     override fun onDestroy() {
         closed = true
+        localServer?.stop()
         super.onDestroy()
+    }
+
+    override fun onStop() {
+        if (localPanel != null) closeLocalUpdate()
+        super.onStop()
+    }
+
+    @Deprecated("Android TV Back first closes the local update form")
+    override fun onBackPressed() = goBack()
+
+    private fun goBack() {
+        if (localPanel == null) finish() else closeLocalUpdate()
+    }
+
+    private fun openLocalUpdate() {
+        val address = LanPairingAddress.find(this)
+        if (address == null) {
+            status.setText(R.string.pairing_network_missing)
+            return
+        }
+        val code = SecureRandom().nextInt(1_000_000).toString().padStart(6, '0')
+        val pairing = TvPairingPanel(this, getString(R.string.update_local_qr),
+            getString(R.string.update_local_action), getString(R.string.update_local_help))
+        val cancel = TvChrome.action(this, getString(R.string.update_local_back)).apply {
+            setOnClickListener { closeLocalUpdate() }
+        }
+        pairing.setAction(cancel)
+        val receiver = LocalUpdateServer(code, File(cacheDir, "updates"), { validateApk(it) }) { file ->
+            main.postDelayed({
+                if (closed || localPanel !== pairing) file.delete() else {
+                    closeLocalUpdate()
+                    readyToInstall(file)
+                }
+            }, 300)
+        }
+        try {
+            receiver.start(NanoHTTPD.SOCKET_READ_TIMEOUT, true)
+            localServer = receiver
+            localPanel = pairing
+            val url = "http://$address:${receiver.listeningPort}/"
+            pairing.showCode(url, code)
+            pairing.addDetail(TvChrome.label(this, url, 16f, muted = true))
+            overview.visibility = FrameLayout.GONE
+            content.addView(pairing, FrameLayout.LayoutParams(-1, -1))
+            cancel.requestFocus()
+        } catch (_: Exception) {
+            receiver.stop()
+            closeLocalUpdate()
+            status.setText(R.string.update_local_server_error)
+        }
+    }
+
+    private fun closeLocalUpdate() {
+        localServer?.stop()
+        localServer = null
+        localPanel?.let(content::removeView)
+        localPanel = null
+        overview.visibility = FrameLayout.VISIBLE
+        localAction.requestFocus()
     }
 
     private fun checkLatest() {
@@ -87,11 +166,13 @@ class UpdateActivity : Activity() {
         busy = true
         action.isEnabled = false
         status.setText(R.string.update_checking)
+        val previousFile = downloaded
         Thread {
             val result = runCatching { ReleaseClient().latest() }
             runOnUiThread {
                 if (closed) return@runOnUiThread
                 busy = false
+                if (downloaded !== previousFile) return@runOnUiThread
                 result.onSuccess { found ->
                     val current = ReleaseVersion.parse(BuildConfig.VERSION_NAME)
                     release = found?.takeIf { current == null || it.version > current }
@@ -124,6 +205,7 @@ class UpdateActivity : Activity() {
         if (busy) return
         busy = true
         action.isEnabled = false
+        localAction.isEnabled = false
         progress.visibility = ProgressBar.VISIBLE
         progress.progress = 0
         status.setText(R.string.update_downloading)
@@ -135,12 +217,7 @@ class UpdateActivity : Activity() {
                     runOnUiThread { if (!closed) progress.progress = percent }
                 }
                 try {
-                    val info = packageManager.getPackageArchiveInfo(temporary.absolutePath, 0)
-                        ?: error("Android не распознал APK")
-                    require(info.packageName == packageName) { "APK принадлежит другому приложению" }
-                    require(info.versionName == selected.version.toString()) { "Версия APK не совпадает с релизом" }
-                    val newCode = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
-                    require(newCode > BuildConfig.VERSION_CODE) { "Номер сборки APK не выше установленного" }
+                    validateApk(temporary, selected.version.toString())
                     val target = File(directory, "FreeCast-TV-${selected.version}.apk")
                     if (target.exists()) target.delete()
                     check(temporary.renameTo(target)) { "Не удалось сохранить APK" }
@@ -153,17 +230,41 @@ class UpdateActivity : Activity() {
             runOnUiThread {
                 if (closed) return@runOnUiThread
                 busy = false
+                localAction.isEnabled = true
                 progress.visibility = ProgressBar.GONE
-                result.onSuccess { file ->
-                    downloaded = file
-                    status.setText(R.string.update_ready)
-                    action.isEnabled = true
-                    action.setText(R.string.update_install)
-                    action.setOnClickListener { requestInstall(file) }
-                    requestInstall(file)
-                }.onFailure { showError(it) }
+                result.onSuccess(::readyToInstall).onFailure(::showError)
             }
         }.start()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun validateApk(file: File, expectedVersion: String? = null) {
+        val flags = if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
+        val candidate = requireNotNull(packageManager.getPackageArchiveInfo(file.absolutePath, flags)) {
+            getString(R.string.update_invalid_apk)
+        }
+        require(candidate.packageName == packageName) { getString(R.string.update_wrong_package) }
+        require(expectedVersion == null || candidate.versionName == expectedVersion) { getString(R.string.update_wrong_version) }
+        val newCode = if (Build.VERSION.SDK_INT >= 28) candidate.longVersionCode else candidate.versionCode.toLong()
+        require(newCode > BuildConfig.VERSION_CODE) { getString(R.string.update_old_apk) }
+        val installed = packageManager.getPackageInfo(packageName, flags)
+        val signers = apkSigners(candidate)
+        require(signers.isNotEmpty() && signers == apkSigners(installed)) { getString(R.string.update_wrong_signer) }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun apkSigners(info: PackageInfo) = if (Build.VERSION.SDK_INT >= 28) {
+        info.signingInfo?.apkContentsSigners?.toSet().orEmpty()
+    } else info.signatures?.toSet().orEmpty()
+
+    private fun readyToInstall(file: File) {
+        downloaded?.takeIf { it != file }?.delete()
+        downloaded = file
+        status.setText(R.string.update_ready)
+        action.isEnabled = true
+        action.setText(R.string.update_install)
+        action.setOnClickListener { requestInstall(file) }
+        requestInstall(file)
     }
 
     private fun openReleasePage(selected: ReleaseInfo) {
