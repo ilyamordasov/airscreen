@@ -45,6 +45,8 @@ class VpnActivity : Activity() {
     private lateinit var closeImport: Button
     private lateinit var deleteAction: Button
     private lateinit var actions: LinearLayout
+    private val busyActions = mutableListOf<Button>()
+    private var manualStops = 0
     private val handler = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private var busy = false
@@ -81,10 +83,13 @@ class VpnActivity : Activity() {
         overview.addView(info, LinearLayout.LayoutParams(-1, -2))
         actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; isBaselineAligned = false }
         overview.addView(actions, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
-        addAction("Обновить прокси", primary = true, action = ::updateProxies)
-        addAction("Подключить", action = ::connect)
-        addAction("Отключить", action = ::stopVpn)
-        importAction = addAction("Импорт по QR") { showImport(true) }
+        addAction(actions, "Подключить", primary = true) { connect() }
+        addAction(actions, getString(R.string.vpn_stop_core), allowWhileBusy = true) { stopVpn() }
+        addAction(actions, getString(R.string.vpn_restart_core)) { connect(restart = true) }
+        val tools = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; isBaselineAligned = false }
+        overview.addView(tools, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        addAction(tools, "Обновить прокси", action = ::updateProxies)
+        importAction = addAction(tools, "Импорт по QR") { showImport(true) }
         proxyRows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         overview.addView(ScrollView(this).apply { addView(proxyRows) },
             LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(12) })
@@ -193,7 +198,8 @@ class VpnActivity : Activity() {
         val restoreVpn = isVpnRunning()
         val app = application as FreeCastApplication
         val session = app.foregroundSession
-        if (restoreVpn) stopVpn()
+        val stopCount = manualStops
+        if (restoreVpn) FreeCastVpnService.disconnect(this)
         setBusy(true)
         importStatus.text = "Обновляем подписку…"
         worker.execute {
@@ -222,7 +228,8 @@ class VpnActivity : Activity() {
                     }
                     setBusy(false)
                 }
-                if (restoreVpn && session != null && app.foregroundSession === session &&
+                if (!isDestroyed && restoreVpn && manualStops == stopCount &&
+                    session != null && app.foregroundSession === session &&
                     VpnService.prepare(applicationContext) == null) {
                     FreeCastVpnService.connect(applicationContext)
                 }
@@ -251,35 +258,27 @@ class VpnActivity : Activity() {
             return
         }
         val restoreVpn = isVpnRunning()
-        val app = application as FreeCastApplication
-        val session = app.foregroundSession
-        if (restoreVpn) stopVpn()
         profileStatus.text = profileLabel()
         renderProxies(proxies)
         importStatus.text = "Узел выбран."
-        if (restoreVpn) {
-            setBusy(true)
-            worker.execute {
-                val stopped = runCatching { waitForVpnToStop() }.isSuccess
-                handler.post {
-                    if (!isDestroyed) {
-                        setBusy(false)
-                        if (stopped && session != null && app.foregroundSession === session) connect()
-                        if (!stopped) importStatus.text = "Повторите подключение VPN."
-                    }
-                }
-            }
-        }
+        if (restoreVpn) connect(restart = true)
     }
 
-    private fun addAction(title: String, primary: Boolean = false, action: () -> Unit): Button {
+    private fun addAction(
+        row: LinearLayout,
+        title: String,
+        primary: Boolean = false,
+        allowWhileBusy: Boolean = false,
+        action: () -> Unit,
+    ): Button {
         val button = TvChrome.action(this, title, primary).apply {
             setPadding(dp(12), 0, dp(12), 0)
-            setOnClickListener { if (!busy) action() }
+            setOnClickListener { if (!busy || allowWhileBusy) action() }
         }
-        actions.addView(button, LinearLayout.LayoutParams(0, dp(58), 1f).apply {
-            if (actions.childCount > 0) marginStart = dp(8)
+        row.addView(button, LinearLayout.LayoutParams(0, dp(50), 1f).apply {
+            if (row.childCount > 0) marginStart = dp(8)
         })
+        if (!allowWhileBusy) busyActions += button
         return button
     }
 
@@ -293,7 +292,7 @@ class VpnActivity : Activity() {
     private fun setBusy(value: Boolean) {
         busy = value
         deleteAction.isEnabled = !value
-        for (i in 0 until actions.childCount) actions.getChildAt(i).isEnabled = !value
+        busyActions.forEach { it.isEnabled = !value }
     }
 
     private fun deleteProfile() {
@@ -306,6 +305,7 @@ class VpnActivity : Activity() {
     }
 
     private fun stopVpn() {
+        manualStops++
         FreeCastVpnService.disconnect(this)
     }
 
@@ -352,25 +352,27 @@ class VpnActivity : Activity() {
         } finally { connection.disconnect() }
     }
 
-    private fun connect() {
+    private fun connect(restart: Boolean = false) {
         if (VpnProfileStore.load(this) == null) {
             importStatus.text = "Сначала добавьте профиль"
             return
         }
         val permission = VpnService.prepare(this)
-        if (permission != null) startActivityForResult(permission, VPN_PERMISSION_REQUEST) else startVpn()
+        val request = if (restart) VPN_RESTART_PERMISSION_REQUEST else VPN_PERMISSION_REQUEST
+        if (permission != null) startActivityForResult(permission, request) else startVpn(restart)
     }
 
     @Deprecated("Android VPN consent still uses startActivityForResult on API 24")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == VPN_PERMISSION_REQUEST) {
-            if (resultCode == RESULT_OK) startVpn() else importStatus.text = "Разрешение VPN не выдано"
+        if (requestCode == VPN_PERMISSION_REQUEST || requestCode == VPN_RESTART_PERMISSION_REQUEST) {
+            if (resultCode == RESULT_OK) startVpn(requestCode == VPN_RESTART_PERMISSION_REQUEST)
+            else importStatus.text = "Разрешение VPN не выдано"
         }
     }
 
-    private fun startVpn() {
-        FreeCastVpnService.connect(this)
+    private fun startVpn(restart: Boolean) {
+        if (restart) FreeCastVpnService.restart(this) else FreeCastVpnService.connect(this)
     }
 
     private fun profileLabel(): String = if (VpnProfileStore.load(this) == null) "Профиль не добавлен" else "VLESS-профиль добавлен"
@@ -379,6 +381,7 @@ class VpnActivity : Activity() {
     companion object {
         private const val STATE_IMPORT_OPEN = "importOpen"
         private const val VPN_PERMISSION_REQUEST = 814
+        private const val VPN_RESTART_PERMISSION_REQUEST = 815
         private const val TAG = "VpnActivity"
     }
 }

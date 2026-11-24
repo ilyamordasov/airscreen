@@ -81,6 +81,7 @@ android {
     buildFeatures { buildConfig = true }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -95,6 +96,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     // Pinned, checksum-verified by fetch-libbox.sh before every CI build.
     implementation(files("libs/libbox.aar"))
     implementation("androidx.core:core-ktx:1.13.1")
@@ -105,6 +107,7 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.4.1")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.jsoup:jsoup:1.24.1")
     implementation("com.google.zxing:core:3.5.4")
 
     testImplementation("junit:junit:4.13.2")

@@ -4,8 +4,12 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.text.Html
 import android.text.Spanned
+import android.text.TextUtils
 import android.text.style.URLSpan
 import android.view.Gravity
 import android.view.View
@@ -13,10 +17,14 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import com.airtv.receiver.R
-import com.airtv.receiver.link.TvCrateResolver
+import com.airtv.receiver.link.ProgrammeGuide
+import com.airtv.receiver.link.ProgrammeGuideClient
+import com.airtv.receiver.link.ProgrammeGuideClient.Channel
 import java.net.HttpURLConnection
 import java.net.URL
 import org.json.JSONObject
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import kotlin.math.roundToInt
 
 /** TV-side directory of football broadcasts and channel pages. */
@@ -26,6 +34,26 @@ class BroadcastsActivity : Activity() {
     private lateinit var aceStatus: TextView
     private lateinit var directoryStatus: TextView
     private var loadGeneration = 0
+    private lateinit var catalogueStatus: LinearLayout
+    private lateinit var guideRow: LinearLayout
+    private lateinit var nowLabel: TextView
+    private lateinit var nowTitle: TextView
+    private lateinit var nextLabel: TextView
+    private lateinit var nextTitle: TextView
+    private val guide = ProgrammeGuideClient()
+    private val guides = mutableMapOf<Channel, List<ProgrammeGuide.Entry>>()
+    private val guideWorker = Executors.newFixedThreadPool(Channel.entries.size)
+    private val guideTasks = mutableListOf<Future<*>>()
+    private val guideHandler = Handler(Looper.getMainLooper())
+    private var guideGeneration = 0
+    private var guideRequestedAt: Long? = null
+    private val guideTick = object : Runnable {
+        override fun run() {
+            refreshGuide()
+            renderGuide()
+            guideHandler.postDelayed(this, 15_000)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,40 +77,129 @@ class BroadcastsActivity : Activity() {
         status = TvChrome.label(this, "", if (compact) 12f else 14f, muted = true)
         aceStatus = TvChrome.label(this, "", if (compact) 11f else 13f, muted = true)
         directoryStatus = TvChrome.label(this, "", if (compact) 11f else 13f, muted = true)
-        val content = LinearLayout(this).apply {
+        catalogueStatus = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(carousel, LinearLayout.LayoutParams(-1, 0, 1f))
-            addView(status, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+            addView(status)
             addView(LinearLayout(this@BroadcastsActivity).apply {
                 isBaselineAligned = false
                 addView(aceStatus, LinearLayout.LayoutParams(0, -2, 1f))
                 addView(directoryStatus, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(16) })
             }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
         }
+        guideRow = LinearLayout(this).apply { isBaselineAligned = false }
+        nowLabel = TvChrome.label(this, "", if (compact) 12f else 14f, muted = true)
+        nextLabel = TvChrome.label(this, "", if (compact) 12f else 14f, muted = true)
+        nowTitle = programmeLabel(compact)
+        nextTitle = programmeLabel(compact)
+        addGuideColumn(nowLabel, nowTitle)
+        addGuideColumn(nextLabel, nextTitle)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(carousel, LinearLayout.LayoutParams(-1, 0, 1f))
+            addView(catalogueStatus, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+            addView(guideRow, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+        }
         carousel.onSelectionChanged = { id ->
             share.nextFocusDownId = id
             refresh.nextFocusDownId = id
+            renderGuide()
         }
         setContentView(TvChrome.page(this, TvChrome.Section.BROADCASTS,
             getString(R.string.dashboard_broadcasts), null, content, titleActions = actions))
         load()
     }
 
+    override fun onResume() {
+        super.onResume()
+        guideHandler.post(guideTick)
+    }
+
+    override fun onPause() {
+        guideHandler.removeCallbacks(guideTick)
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        guideWorker.shutdownNow()
+        super.onDestroy()
+    }
+
+    private fun programmeLabel(compact: Boolean) = TvChrome.label(this, "", if (compact) 15f else 18f).apply {
+        setLines(2)
+        ellipsize = TextUtils.TruncateAt.END
+    }
+
+    private fun addGuideColumn(label: TextView, title: TextView) {
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(label)
+            addView(title, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+        }
+        guideRow.addView(column, LinearLayout.LayoutParams(0, -2, 1f).apply {
+            if (guideRow.childCount > 0) marginStart = dp(24)
+        })
+    }
+
+    private fun refreshGuide(force: Boolean = false) {
+        val elapsed = SystemClock.elapsedRealtime()
+        if (!force && guideRequestedAt?.let { elapsed - it < GUIDE_REFRESH_INTERVAL } == true) return
+        guideRequestedAt = elapsed
+        val generation = ++guideGeneration
+        guideTasks.forEach { it.cancel(true) }
+        guideTasks.clear()
+        val now = System.currentTimeMillis()
+        for (channel in Channel.entries) {
+            guideTasks += guideWorker.submit {
+                val result = runCatching { guide.load(channel, now) }.getOrNull()
+                runOnUiThread {
+                    if (isDestroyed || isFinishing || generation != guideGeneration) return@runOnUiThread
+                    if (!result.isNullOrEmpty() || channel !in guides) guides[channel] = result.orEmpty()
+                    renderGuide()
+                }
+            }
+        }
+    }
+
+    private fun renderGuide() {
+        val channel = Channel.entries.firstOrNull { it.page == carousel.selectedKey }
+        guideRow.visibility = if (channel == null) View.GONE else View.VISIBLE
+        catalogueStatus.visibility = if (channel == null) View.VISIBLE else View.GONE
+        if (channel == null) return
+        val now = System.currentTimeMillis()
+        val window = ProgrammeGuide.window(guides[channel].orEmpty(), now)
+        val remaining = window.current?.remainingMinutes(now)
+        nowLabel.show(when {
+            remaining == null -> getString(R.string.broadcast_guide_now)
+            remaining < 60 -> getString(R.string.broadcast_guide_minutes, remaining)
+            else -> getString(R.string.broadcast_guide_hours, remaining / 60, remaining % 60)
+        })
+        nowTitle.show(window.current?.title ?: getString(
+            if (channel in guides) R.string.broadcast_guide_unavailable else R.string.broadcast_guide_loading))
+        nextLabel.show(window.next?.let { getString(R.string.broadcast_guide_next_at, ProgrammeGuide.moscowClock(it.startsAt)) }
+            ?: getString(R.string.broadcast_guide_next))
+        nextTitle.show(window.next?.title ?: getString(R.string.broadcast_guide_no_next))
+    }
+
+    private fun TextView.show(value: String) {
+        if (text != value) text = value
+    }
+
     private fun load() {
         val generation = ++loadGeneration
         carousel.replace(listOf(
-            TvPosterCarousel.Poster(TvCrateResolver.MATCH_PREMIER_URL, getString(R.string.broadcast_match_premier),
+            TvPosterCarousel.Poster(Channel.MATCH_PREMIER.page, getString(R.string.broadcast_match_premier),
                 getString(R.string.broadcast_tvcrate), R.drawable.dashboard_broadcasts, tint = TvGlassDrawable.PINK,
                 actionSymbol = "▶"),
-            TvPosterCarousel.Poster(MATCH_TV_URL, getString(R.string.broadcast_match_tv),
-                getString(R.string.broadcast_free_live), R.drawable.catalog_live, tint = TvGlassDrawable.BLUE,
+            TvPosterCarousel.Poster(Channel.OKKO_FOOTBALL.page, getString(R.string.broadcast_okko_football),
+                getString(R.string.broadcast_tvcrate), R.drawable.catalog_football, tint = TvGlassDrawable.BLUE,
                 actionSymbol = "▶"),
-            TvPosterCarousel.Poster(MATCH_APP_URL, getString(R.string.broadcast_match_premier),
-                getString(R.string.broadcast_subscription), R.drawable.dashboard_broadcasts),
+            TvPosterCarousel.Poster(Channel.OKKO_PRIME.page, getString(R.string.broadcast_okko_prime),
+                getString(R.string.broadcast_tvcrate), R.drawable.catalog_live, actionSymbol = "▶"),
             TvPosterCarousel.Poster(CATALOG_URL, getString(R.string.broadcast_spartak),
                 getString(R.string.broadcast_match_tv_source), R.drawable.catalog_football, tint = TvGlassDrawable.PINK),
         ))
-        if (generation == 1) carousel.focus(TvCrateResolver.MATCH_PREMIER_URL)
+        if (generation == 1) carousel.focus(Channel.MATCH_PREMIER.page)
+        else refreshGuide(force = true)
         status.text = "Загружаем матчи с сайта Матч ТВ…"
         aceStatus.text = "Ищем P2P-эфиры через Ace Stream Engine…"
         directoryStatus.text = "Обновляем P2P-каталог…"
@@ -270,8 +387,7 @@ class BroadcastsActivity : Activity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
     private companion object {
-        const val MATCH_TV_URL = "https://matchtv.ru/video/channel/matchtv"
-        const val MATCH_APP_URL = "https://matchtv.ru/match-app"
+        const val GUIDE_REFRESH_INTERVAL = 5 * 60_000L
         const val CATALOG_URL = "https://matchtv.ru/football/club/spartak-moscow/broadcasts"
         const val P2P_DIRECTORY_URL = "https://acestreamid.com/channel/match-premyer"
     }

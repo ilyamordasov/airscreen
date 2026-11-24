@@ -147,4 +147,16 @@
     <string name="broadcast_p2p_unverified">P2P · не проверен</string>
     <string name="broadcast_ace">Ace Stream</string>
     <string name="broadcast_ace_available">Ace Stream · доступен</string>
+    <string name="broadcast_okko_football">Окко Футбол HD</string>
+    <string name="broadcast_okko_prime">Окко Прайм Спорт HD</string>
+    <string name="broadcast_guide_now">Сейчас</string>
+    <string name="broadcast_guide_next">Дальше</string>
+    <string name="broadcast_guide_next_at">Дальше в %1$s МСК</string>
+    <string name="broadcast_guide_minutes">Сейчас · осталось %1$d мин</string>
+    <string name="broadcast_guide_hours">Сейчас · осталось %1$d ч %2$d мин</string>
+    <string name="broadcast_guide_unavailable">Программа недоступна</string>
+    <string name="broadcast_guide_loading">Загружаем программу…</string>
+    <string name="broadcast_guide_no_next">Нет данных</string>
+    <string name="vpn_stop_core">Остановить VPN</string>
+    <string name="vpn_restart_core">Перезапустить VPN</string>
 </resources>
