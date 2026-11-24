@@ -1,5 +1,6 @@
 """Supply the embedded engine with the Android context it needs for playback."""
 
+import json
 import os
 import runpy
 import socket
@@ -10,21 +11,7 @@ import time
 import app_bridge
 
 
-context = {
-    "getAceStreamHome": os.environ["ACESTREAM_HOME"],
-    "getAppDir": os.getcwd(),
-    "getAppId": os.environ["ACE_APP_ID"],
-    "getAppVersionName": os.environ["ACE_APP_VERSION"],
-    "getAppVersionCode": int(os.environ["ACE_APP_CODE"]),
-    "getDeviceId": os.environ["ACE_DEVICE_ID"],
-    "getDeviceModel": os.environ["ACE_DEVICE_MODEL"],
-    "getDeviceManufacturer": os.environ["ACE_DEVICE_MANUFACTURER"],
-    "getArch": "arm64-v8a",
-    "getDeviceABI": "arm64-v8a",
-    "getRAMSize": int(os.environ["ACE_RAM_SIZE"]),
-    "getMaxMemory": int(os.environ["ACE_MAX_MEMORY"]),
-    "getDisplayLanguage": os.environ["ACE_LANGUAGE"],
-}
+context = json.loads(os.environ["ACE_ANDROID_INFO"])
 notifications = {
     "logDebug", "makeToast", "onAuthUpdated", "onEPGUpdated", "onEvent",
     "onPlaylistUpdated", "onSettingsUpdated", "showDialog", "showNotification",
@@ -44,11 +31,16 @@ def android_call(self, method, *args):
         return context[method]
     if method in notifications:
         return None
-    if method in ("getAvailableBytes", "getFreeBytes", "getTotalBytes"):
+    if method == "getAppVersionCodeById":
+        return context["getAppVersionCode"] if args and args[0] == context["getAppId"] else 0
+    if method in ("getAvailableBytes", "getFreeBytes", "getTotalBytes", "getAvailableBlocks",
+                  "getFreeBlocks", "getBlockCount", "getBlockSize"):
         stats = os.statvfs(context["getAceStreamHome"])
-        blocks = {"getAvailableBytes": stats.f_bavail, "getFreeBytes": stats.f_bfree,
-                  "getTotalBytes": stats.f_blocks}
-        return blocks[method] * stats.f_frsize
+        return {"getAvailableBytes": stats.f_bavail * stats.f_frsize,
+                "getFreeBytes": stats.f_bfree * stats.f_frsize,
+                "getTotalBytes": stats.f_blocks * stats.f_frsize,
+                "getAvailableBlocks": stats.f_bavail, "getFreeBlocks": stats.f_bfree,
+                "getBlockCount": stats.f_blocks, "getBlockSize": stats.f_frsize}[method]
     raise AttributeError(method)
 
 

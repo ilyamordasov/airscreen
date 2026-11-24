@@ -2,6 +2,11 @@ package com.airtv.receiver.link
 
 import android.app.ActivityManager
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.Build
 import android.os.Process
 import android.os.SystemClock
@@ -73,7 +78,6 @@ internal object AceStreamEngine {
         val home = File(context.filesDir, "ace-home").apply { mkdirs() }
         val cache = File(context.cacheDir, "ace-data").apply { mkdirs() }
         val nativeDir = File(context.applicationInfo.nativeLibraryDir)
-        val memory = ActivityManager.MemoryInfo().also { context.getSystemService(ActivityManager::class.java).getMemoryInfo(it) }
         val deviceId = File(home, "device-id").let { file ->
             if (file.isFile) file.readText() else UUID.randomUUID().toString().also(file::writeText)
         }
@@ -101,21 +105,48 @@ internal object AceStreamEngine {
             put("ACE_PARENT_PID", Process.myPid().toString())
             put("ACE_HTTP_PORT", httpPort.toString())
             put("ACE_API_PORT", apiPort.toString())
-            put("ACE_APP_ID", context.packageName)
-            put("ACE_APP_VERSION", BuildConfig.VERSION_NAME)
-            put("ACE_APP_CODE", BuildConfig.VERSION_CODE.toString())
-            put("ACE_DEVICE_ID", deviceId)
-            put("ACE_DEVICE_MODEL", Build.MODEL)
-            put("ACE_DEVICE_MANUFACTURER", Build.MANUFACTURER)
-            put("ACE_RAM_SIZE", memory.totalMem.toString())
-            put("ACE_MAX_MEMORY", Runtime.getRuntime().maxMemory().toString())
-            put("ACE_LANGUAGE", Locale.getDefault().language)
+            put("ACE_ANDROID_INFO", androidInfo(context, runtime, home, deviceId).toString())
         }
         synchronized(lifecycle) {
             if (generation != request) throw IOException("Embedded Ace Stream was stopped")
             val process = builder.start()
             Thread({ drainStartup(process, File(home, "startup.log")) }, "ace-startup-output").start()
             Engine(process, httpPort).also { running = it }
+        }
+    }
+
+    private fun androidInfo(context: Context, runtime: File, home: File, deviceId: String): JSONObject {
+        val activity = context.getSystemService(ActivityManager::class.java)
+        val memory = ActivityManager.MemoryInfo().also(activity::getMemoryInfo)
+        val network = context.getSystemService(ConnectivityManager::class.java)
+        val capabilities = network.getNetworkCapabilities(network.activeNetwork)
+        val packages = context.packageManager
+        val browser = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")).addCategory(Intent.CATEGORY_BROWSABLE)
+        return JSONObject().apply {
+            put("getAceStreamHome", home.path)
+            put("getAppDir", runtime.path)
+            put("getAppId", context.packageName)
+            put("getAppVersionName", BuildConfig.VERSION_NAME)
+            put("getAppVersionCode", BuildConfig.VERSION_CODE)
+            put("getEngineVersionCode", 3018000)
+            put("getApiLevel", Build.VERSION.SDK_INT)
+            put("getDeviceId", deviceId)
+            put("getDeviceName", Build.DEVICE)
+            put("getDeviceProductName", Build.PRODUCT)
+            put("getDeviceModel", Build.MODEL)
+            put("getDeviceManufacturer", Build.MANUFACTURER)
+            put("getArch", "arm64-v8a")
+            put("getDeviceABI", "arm64-v8a")
+            put("getRAMSize", memory.totalMem)
+            put("getMaxMemory", Runtime.getRuntime().maxMemory())
+            put("getTotalMemory", Runtime.getRuntime().totalMemory())
+            put("getMemoryClass", activity.memoryClass)
+            put("getDisplayLanguage", Locale.getDefault().displayLanguage)
+            put("getLocale", Locale.getDefault().language)
+            put("isAndroidTv", packages.hasSystemFeature(PackageManager.FEATURE_LEANBACK))
+            put("isMobileNetwork", capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true)
+            put("hasBrowser", browser.resolveActivity(packages) != null)
+            put("hasWebView", packages.hasSystemFeature(PackageManager.FEATURE_WEBVIEW))
         }
     }
 
