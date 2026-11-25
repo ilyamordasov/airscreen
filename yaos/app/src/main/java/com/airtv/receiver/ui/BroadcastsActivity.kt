@@ -15,16 +15,12 @@ import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
-import com.airtv.receiver.BuildConfig
 import com.airtv.receiver.R
-import com.airtv.receiver.link.AceStreamEngine
 import com.airtv.receiver.link.ProgrammeGuide
 import com.airtv.receiver.link.ProgrammeGuideClient
 import com.airtv.receiver.link.ProgrammeGuideClient.Channel
 import java.net.HttpURLConnection
 import java.net.URL
-import org.json.JSONObject
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import kotlin.math.roundToInt
@@ -33,8 +29,6 @@ import kotlin.math.roundToInt
 class BroadcastsActivity : Activity() {
     private lateinit var carousel: TvPosterCarousel<String>
     private lateinit var status: TextView
-    private lateinit var aceStatus: TextView
-    private lateinit var directoryStatus: TextView
     private var loadGeneration = 0
     private lateinit var catalogueStatus: LinearLayout
     private lateinit var guideRow: LinearLayout
@@ -77,16 +71,9 @@ class BroadcastsActivity : Activity() {
         carousel = TvPosterCarousel(this, scale, dp(4), showDots = false, focusUpId = share.id, open = ::openBroadcast)
         val compact = resources.configuration.screenHeightDp < 440
         status = TvChrome.label(this, "", if (compact) 12f else 14f, muted = true)
-        aceStatus = TvChrome.label(this, "", if (compact) 11f else 13f, muted = true)
-        directoryStatus = TvChrome.label(this, "", if (compact) 11f else 13f, muted = true)
         catalogueStatus = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(status)
-            addView(LinearLayout(this@BroadcastsActivity).apply {
-                isBaselineAligned = false
-                addView(aceStatus, LinearLayout.LayoutParams(0, -2, 1f))
-                addView(directoryStatus, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(16) })
-            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
         }
         guideRow = LinearLayout(this).apply { isBaselineAligned = false }
         nowLabel = TvChrome.label(this, "", if (compact) 12f else 14f, muted = true)
@@ -165,7 +152,7 @@ class BroadcastsActivity : Activity() {
     private fun renderGuide() {
         val channel = Channel.entries.firstOrNull { it.page == carousel.selectedKey }
         guideRow.visibility = if (channel == null) View.GONE else View.VISIBLE
-        catalogueStatus.visibility = if (channel == null) View.VISIBLE else View.GONE
+        catalogueStatus.visibility = if (channel == null && carousel.selectedKey != P2P) View.VISIBLE else View.GONE
         if (channel == null) return
         val now = System.currentTimeMillis()
         val window = ProgrammeGuide.window(guides[channel].orEmpty(), now)
@@ -193,18 +180,18 @@ class BroadcastsActivity : Activity() {
                 getString(R.string.broadcast_tvcrate), R.drawable.dashboard_broadcasts, tint = TvGlassDrawable.PINK,
                 actionSymbol = "▶"),
             TvPosterCarousel.Poster(Channel.OKKO_FOOTBALL.page, getString(R.string.broadcast_okko_football),
-                getString(R.string.broadcast_tvcrate), R.drawable.catalog_football, tint = TvGlassDrawable.BLUE,
+                getString(R.string.broadcast_tvcrate), R.drawable.catalog_okko, tint = TvGlassDrawable.BLUE,
                 actionSymbol = "▶"),
             TvPosterCarousel.Poster(Channel.OKKO_PRIME.page, getString(R.string.broadcast_okko_prime),
-                getString(R.string.broadcast_tvcrate), R.drawable.catalog_live, actionSymbol = "▶"),
+                getString(R.string.broadcast_tvcrate), R.drawable.catalog_okko, actionSymbol = "▶"),
+            TvPosterCarousel.Poster(P2P, getString(R.string.p2p_title),
+                getString(R.string.p2p_card_description), R.drawable.catalog_live, tint = TvGlassDrawable.BLUE),
             TvPosterCarousel.Poster(CATALOG_URL, getString(R.string.broadcast_spartak),
                 getString(R.string.broadcast_match_tv_source), R.drawable.catalog_football, tint = TvGlassDrawable.PINK),
         ))
         if (generation == 1) carousel.focus(Channel.MATCH_PREMIER.page)
         else refreshGuide(force = true)
         status.text = "Загружаем матчи с сайта Матч ТВ…"
-        aceStatus.text = "Ищем P2P-эфиры через Ace Stream Engine…"
-        directoryStatus.text = "Обновляем P2P-каталог…"
         Thread {
             val result = runCatching {
                 val connection = (URL(CATALOG_URL).openConnection() as HttpURLConnection).apply {
@@ -233,132 +220,6 @@ class BroadcastsActivity : Activity() {
                 }
             }
         }.start()
-        loadAceStreams(generation)
-        loadDirectory(generation)
-    }
-
-    private fun loadDirectory(generation: Int) {
-        Thread {
-            val result = runCatching {
-                val connection = (URL(P2P_DIRECTORY_URL).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 5_000
-                    readTimeout = 5_000
-                    setRequestProperty("User-Agent", "Mozilla/5.0 FreeCast-TV")
-                }
-                val html = try {
-                    connection.inputStream.bufferedReader().use { it.readText() }
-                } finally {
-                    connection.disconnect()
-                }
-                val text = Html.fromHtml(html, Html.FROM_HTML_MODE_COMPACT).toString()
-                val start = text.indexOf("ContentID")
-                if (start < 0) emptyList() else {
-                    val end = text.indexOf("View all", start).takeIf { it > start } ?: text.length
-                    Regex("[a-fA-F0-9]{40}").findAll(text.substring(start, end))
-                        .map { it.value.lowercase() }.distinct().take(8).toList()
-                }
-            }
-            runOnUiThread {
-                if (isFinishing || isDestroyed || generation != loadGeneration) return@runOnUiThread
-                result.onSuccess { ids ->
-                    ids.forEachIndexed { index, id ->
-                        addP2pPoster("acestream:?content_id=$id",
-                            getString(R.string.broadcast_p2p_variant, index + 1), getString(R.string.broadcast_p2p_unverified))
-                    }
-                    directoryStatus.text = if (ids.isEmpty()) "P2P-каталог не содержит эфиров." else
-                        "P2P-каталог: ${ids.size} вариантов, работоспособность не проверена"
-                }.onFailure {
-                    directoryStatus.text = "P2P-каталог сейчас недоступен."
-                }
-            }
-        }.start()
-    }
-
-    private fun loadAceStreams(generation: Int) {
-        Thread {
-            val result = runCatching {
-                val port = AceStreamEngine.port(this)
-                listOf("Спартак", "Матч Премьер").flatMap { query ->
-                    val connection = AceStreamEngine.connection(port, "/search?query=${Uri.encode(query)}&page_size=20").apply {
-                        connectTimeout = 2_000
-                        readTimeout = 3_000
-                    }
-                    try {
-                        val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-                        val channels = json.getJSONObject("result").getJSONArray("results")
-                        buildList {
-                            for (i in 0 until channels.length()) {
-                                val channel = channels.getJSONObject(i)
-                                val name = channel.optString("name").take(90)
-                                val items = channel.optJSONArray("items") ?: continue
-                                for (j in 0 until items.length()) {
-                                    val item = items.getJSONObject(j)
-                                    val hash = item.optString("infohash")
-                                    if (hash.matches(Regex("[a-fA-F0-9]{40}"))) {
-                                        add(Triple(name, hash, item.optInt("status")))
-                                    }
-                                }
-                            }
-                        }
-                    } finally {
-                        connection.disconnect()
-                    }
-                }.distinctBy { it.second }.take(12)
-            }
-            runOnUiThread {
-                if (isFinishing || isDestroyed || generation != loadGeneration) return@runOnUiThread
-                result.onSuccess { streams ->
-                    streams.forEach { (name, hash, availability) ->
-                        val source = if (availability == 2) R.string.broadcast_ace_available else R.string.broadcast_ace
-                        addP2pPoster("acestream:?infohash=$hash", name, getString(source))
-                    }
-                    aceStatus.text = if (streams.isEmpty()) "Ace Stream: эфиры «Спартака» не найдены." else
-                        "Ace Stream: ${streams.size} P2P-эфиров"
-                }.onFailure {
-                    aceStatus.text = if (BuildConfig.EMBEDDED_ACE) getString(R.string.ace_search_unavailable)
-                        else "Для поиска P2P установите и запустите Ace Stream Engine на ТВ."
-                }
-            }
-        }.start()
-    }
-
-    private fun addP2pPoster(url: String, title: String, description: String) {
-        carousel.append(TvPosterCarousel.Poster(url, title.ifBlank { getString(R.string.broadcast_match_premier) },
-            description, R.drawable.catalog_live, tint = TvGlassDrawable.BLUE, actionSymbol = "▶"))
-    }
-
-    private fun startAce(infohash: String) {
-        Toast.makeText(this, "Открываем Ace Stream…", Toast.LENGTH_SHORT).show()
-        Thread {
-            val contentId = runCatching {
-                val port = AceStreamEngine.port(this)
-                val connection = AceStreamEngine.connection(port,
-                    "/server/api?api_version=3&method=get_content_id&infohash=$infohash").apply {
-                    connectTimeout = 2_000
-                    readTimeout = 3_000
-                }
-                try {
-                    JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-                        .getJSONObject("result").getString("content_id")
-                } finally {
-                    connection.disconnect()
-                }
-            }.getOrNull()
-            runOnUiThread {
-                if (isFinishing || isDestroyed) return@runOnUiThread
-                if (contentId.isNullOrBlank()) {
-                    Toast.makeText(this, "Ace Stream не вернул адрес эфира.", Toast.LENGTH_LONG).show()
-                    return@runOnUiThread
-                }
-                launchAceContentId(contentId)
-            }
-        }.start()
-    }
-
-    private fun launchAceContentId(contentId: String) {
-        if (!contentId.matches(Regex("[a-fA-F0-9]{40}"))) return
-        startActivity(Intent(this, AcePlaybackActivity::class.java)
-            .putExtra(AcePlaybackActivity.EXTRA_CONTENT_ID, contentId.lowercase()))
     }
 
     private fun extractMatchLinks(html: String): List<Pair<String, String>> {
@@ -379,9 +240,8 @@ class BroadcastsActivity : Activity() {
     }
 
     private fun openBroadcast(url: String) {
-        if (url.startsWith("acestream:")) {
-            if (url.contains("content_id=")) launchAceContentId(url.substringAfter("content_id="))
-            else startAce(url.substringAfter("infohash="))
+        if (url == P2P) {
+            startActivity(Intent(this, P2pBroadcastsActivity::class.java))
         } else {
             startActivity(Intent(this, BroadcastWebActivity::class.java)
                 .putExtra(BroadcastWebActivity.EXTRA_URL, url))
@@ -393,6 +253,6 @@ class BroadcastsActivity : Activity() {
     private companion object {
         const val GUIDE_REFRESH_INTERVAL = 5 * 60_000L
         const val CATALOG_URL = "https://matchtv.ru/football/club/spartak-moscow/broadcasts"
-        const val P2P_DIRECTORY_URL = "https://acestreamid.com/channel/match-premyer"
+        const val P2P = "p2p"
     }
 }

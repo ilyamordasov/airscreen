@@ -37,7 +37,10 @@ internal object AceStreamEngine {
     private data class Engine(val process: java.lang.Process, val port: Int)
 
     fun port(context: Context): Int {
-        if (!BuildConfig.EMBEDDED_ACE) return EXTERNAL_PORT
+        if (!BuildConfig.EMBEDDED_ACE) {
+            if (!ready(EXTERNAL_PORT)) throw IOException("External Ace Stream API is unavailable")
+            return EXTERNAL_PORT
+        }
         val request = synchronized(lifecycle) { generation }
         val current = start(context.applicationContext, request)
         val deadline = SystemClock.elapsedRealtime() + 25_000

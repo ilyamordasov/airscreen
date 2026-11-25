@@ -55,6 +55,8 @@
             android:screenOrientation="landscape" />
         <activity android:name=".ui.AcePlaybackActivity" android:exported="false"
             android:screenOrientation="landscape" />
+        <activity android:name=".ui.P2pBroadcastsActivity" android:exported="false"
+            android:screenOrientation="landscape" />
         <activity android:name=".ui.BroadcastWebActivity" android:exported="false"
             android:screenOrientation="landscape" />
         <activity android:name=".ui.StreamPlaybackActivity" android:exported="false"
