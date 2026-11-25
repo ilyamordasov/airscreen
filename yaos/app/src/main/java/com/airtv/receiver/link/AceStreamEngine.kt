@@ -38,7 +38,7 @@ internal object AceStreamEngine {
 
     fun port(context: Context): Int {
         if (!BuildConfig.EMBEDDED_ACE) {
-            if (!ready(EXTERNAL_PORT)) throw IOException("External Ace Stream API is unavailable")
+            if (!isReady(EXTERNAL_PORT)) throw IOException("External Ace Stream API is unavailable")
             return EXTERNAL_PORT
         }
         val request = synchronized(lifecycle) { generation }
@@ -46,7 +46,7 @@ internal object AceStreamEngine {
         val deadline = SystemClock.elapsedRealtime() + 25_000
         while (SystemClock.elapsedRealtime() < deadline) {
             if (!isRunning(current.process)) throw IOException("Embedded Ace Stream exited during startup")
-            if (ready(current.port)) return current.port
+            if (isReady(current.port)) return current.port
             Thread.sleep(250)
         }
         synchronized(lifecycle) {
@@ -185,7 +185,7 @@ internal object AceStreamEngine {
         }
     }
 
-    private fun ready(port: Int): Boolean = runCatching {
+    fun isReady(port: Int): Boolean = runCatching {
         val request = connection(port, "/webui/api/service?method=get_version").apply {
             connectTimeout = 400
             readTimeout = 500

@@ -19,15 +19,11 @@ import android.widget.TextView
 import android.widget.VideoView
 import com.airtv.receiver.BuildConfig
 import com.airtv.receiver.R
-import com.airtv.receiver.link.AceCatalogue
+import com.airtv.receiver.link.AcePlaybackSession
 import com.airtv.receiver.link.AceSource
 import com.airtv.receiver.link.AceStreamEngine
-import org.json.JSONObject
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.Proxy
+import java.net.ConnectException
 import java.net.SocketTimeoutException
-import java.net.URL
 
 /** Plays a stream served by the local Ace Stream engine. */
 class AcePlaybackActivity : Activity() {
@@ -37,12 +33,12 @@ class AcePlaybackActivity : Activity() {
     private lateinit var retry: Button
     private var premiumRequired = false
     private val main = Handler(Looper.getMainLooper())
-    private var stopUrl: String? = null
-    private var closed = false
+    private var session: AcePlaybackSession? = null
+    private var enginePort: Int? = null
+    @Volatile private var closed = false
     private val firstFrameTimeout = Runnable {
         video.stopPlayback()
-        endSession()
-        showError(R.string.ace_no_video)
+        mediaFailed()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,8 +81,7 @@ class AcePlaybackActivity : Activity() {
         }
         video.setOnErrorListener { _, what, extra ->
             Log.w(TAG, "VideoView failed ($what/$extra)")
-            endSession()
-            showError(R.string.ace_no_video)
+            mediaFailed()
             true
         }
         play(source)
@@ -102,27 +97,12 @@ class AcePlaybackActivity : Activity() {
                     "Engine", error)
                 return@Thread
             }
+            if (closed) return@Thread
             runOnUiThread { if (!closed) status.setText(R.string.ace_connecting_source) }
-            val response = runCatching {
-                val request = AceStreamEngine.connection(port, "/ace/manifest.m3u8?format=json&${source.parameter}").apply {
-                    connectTimeout = 4_000
-                    readTimeout = 40_000
-                }
-                val reply = JSONObject(AceCatalogue.read(request))
-                val error = reply.opt("error")
-                if (error != null && error != JSONObject.NULL) {
-                    if (error.toString().contains("premium", ignoreCase = true)) throw PremiumRequired()
-                    throw IOException("Engine rejected the source")
-                }
-                val playback = reply.getJSONObject("response")
-                val manifest = playback.getString("playback_url")
-                val command = playback.optString("command_url").takeIf { it.isNotEmpty() }
-                require(isLocalAceUrl(manifest, port))
-                require(command == null || isLocalAceUrl(command, port))
-                manifest to command
-            }.getOrElse { error ->
+            val response = runCatching { AcePlaybackSession.open(port, source) }.getOrElse { error ->
                 val message = when (error) {
-                    is PremiumRequired -> R.string.ace_premium_required
+                    is AcePlaybackSession.PremiumRequired -> R.string.ace_premium_required
+                    is ConnectException -> R.string.ace_engine_connection_lost
                     is SocketTimeoutException -> R.string.ace_source_timeout
                     else -> R.string.ace_source_unavailable
                 }
@@ -131,15 +111,26 @@ class AcePlaybackActivity : Activity() {
             }
             runOnUiThread {
                 if (closed) {
-                    stop(response.second)
+                    stop(response)
                     return@runOnUiThread
                 }
-                stopUrl = response.second
+                enginePort = port
+                session = response
                 status.setText(R.string.ace_buffering)
                 main.postDelayed(firstFrameTimeout, 45_000)
-                video.setVideoURI(Uri.parse(response.first))
+                video.setVideoURI(Uri.parse(response.manifest))
                 video.requestFocus()
             }
+        }.start()
+    }
+
+    private fun mediaFailed() {
+        main.removeCallbacks(firstFrameTimeout)
+        val port = enginePort ?: return
+        endSession()
+        Thread {
+            val message = if (AceStreamEngine.isReady(port)) R.string.ace_no_video else R.string.ace_engine_connection_lost
+            runOnUiThread { if (!closed) showError(message) }
         }.start()
     }
 
@@ -167,32 +158,17 @@ class AcePlaybackActivity : Activity() {
     }
 
     private fun endSession() {
-        stop(stopUrl)
-        stopUrl = null
+        stop(session)
+        session = null
+        enginePort = null
     }
 
-    private fun stop(url: String?) {
-        if (url == null) return
+    private fun stop(session: AcePlaybackSession?) {
+        if (session == null) return
         Thread {
-            runCatching {
-                val request = (URL("$url${if ('?' in url) '&' else '?'}method=stop")
-                    .openConnection(Proxy.NO_PROXY) as HttpURLConnection).apply {
-                    instanceFollowRedirects = false
-                    connectTimeout = 2_000
-                    readTimeout = 2_000
-                }
-                AceCatalogue.read(request)
-            }
+            runCatching { session.stop() }.onFailure { Log.d(TAG, "Stop failed (${it.javaClass.simpleName})") }
         }.start()
     }
-
-    private fun isLocalAceUrl(value: String, port: Int): Boolean {
-        val uri = Uri.parse(value)
-        return uri.scheme == "http" && uri.host in setOf("127.0.0.1", "localhost") &&
-            uri.port == port && uri.path?.startsWith("/ace/") == true
-    }
-
-    private class PremiumRequired : IOException()
 
     companion object {
         private const val TAG = "AcePlayback"

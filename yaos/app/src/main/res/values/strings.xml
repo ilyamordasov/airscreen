@@ -165,6 +165,18 @@
     <string name="p2p_title">P2P-эфиры</string>
     <string name="p2p_card_description">Поиск и каталог Ace Stream</string>
     <string name="p2p_retry_search">Повторить поиск</string>
+    <string name="p2p_check_stream">Проверить поток</string>
+    <string name="p2p_check_in_progress">Проверяем поток…</string>
+    <string name="p2p_check_not_run">Поток не проверен</string>
+    <string name="p2p_check_no_video">Не удалось получить видео</string>
+    <string name="p2p_check_premium">Требуется Ace Stream Premium</string>
+    <string name="p2p_check_engine_unavailable">Движок недоступен</string>
+    <string name="p2p_check_resolution">%1$dp</string>
+    <string name="p2p_check_bitrate">Битрейт %1$.1f Мбит/с</string>
+    <string name="p2p_check_download">↓ %1$d КБ/с</string>
+    <string name="p2p_check_peers">Пиры: %1$d</string>
+    <string name="p2p_check_unknown_quality">Разрешение неизвестно</string>
+    <string name="p2p_check_unknown_speed">Скорость неизвестна</string>
     <string name="p2p_search_in_progress">Идёт поиск…</string>
     <string name="p2p_engine_loading">Подключаемся к движку Ace Stream…</string>
     <string name="p2p_engine_unavailable">Встроенный движок Ace Stream не запустился.</string>
@@ -190,6 +202,7 @@
     <string name="ace_source_timeout">Источник не ответил вовремя. Можно повторить или выбрать другой вариант.</string>
     <string name="ace_source_unavailable">Ace Stream не получил данные об эфире. Можно повторить или выбрать другой вариант.</string>
     <string name="ace_no_video">Видео не загрузилось. Можно повторить или выбрать другой вариант.</string>
+    <string name="ace_engine_connection_lost">Потеряно соединение с движком Ace Stream. Повторите попытку.</string>
     <string name="broadcast_guide_loading">Загружаем программу…</string>
     <string name="broadcast_guide_no_next">Нет данных</string>
     <string name="vpn_stop_core">Остановить VPN</string>
