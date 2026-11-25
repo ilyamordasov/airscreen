@@ -1,15 +1,17 @@
 package com.airtv.receiver.link
 
+import android.util.Log
 import org.json.JSONObject
 import java.io.IOException
+import java.io.Serializable
 import java.net.URI
 
 internal class AcePlaybackSession private constructor(
     val manifest: String,
-    private val port: Int,
+    val port: Int,
     private val statsPath: String?,
     private val commandPath: String?,
-) {
+) : Serializable {
     data class Stats(val downloadKilobytesPerSecond: Long?, val peers: Long?)
 
     class PremiumRequired : IOException()
@@ -21,6 +23,12 @@ internal class AcePlaybackSession private constructor(
     fun stop() {
         val path = commandPath ?: return
         read(port, "$path${if ('?' in path) '&' else '?'}method=stop", 2_000)
+    }
+
+    fun stopInBackground() {
+        Thread {
+            runCatching { stop() }.onFailure { Log.d("AcePlaybackSession", "Stop failed (${it.javaClass.simpleName})") }
+        }.start()
     }
 
     companion object {

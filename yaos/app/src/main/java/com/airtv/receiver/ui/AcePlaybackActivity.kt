@@ -17,6 +17,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.VideoView
+import androidx.core.content.IntentCompat
 import com.airtv.receiver.BuildConfig
 import com.airtv.receiver.R
 import com.airtv.receiver.link.AcePlaybackSession
@@ -84,22 +85,29 @@ class AcePlaybackActivity : Activity() {
             mediaFailed()
             true
         }
-        play(source)
+        val preparedSession = IntentCompat.getSerializableExtra(intent, EXTRA_SESSION, AcePlaybackSession::class.java)
+        intent.removeExtra(EXTRA_SESSION)
+        play(source, preparedSession)
     }
 
-    private fun play(source: AceSource) {
+    private fun play(source: AceSource, preparedSession: AcePlaybackSession? = null) {
         overlay.visibility = View.VISIBLE
         retry.visibility = View.GONE
         status.setText(R.string.p2p_engine_loading)
         Thread {
             val port = runCatching { AceStreamEngine.port(this) }.getOrElse { error ->
+                preparedSession?.stopInBackground()
                 fail(if (BuildConfig.EMBEDDED_ACE) R.string.p2p_engine_unavailable else R.string.p2p_external_engine_unavailable,
                     "Engine", error)
                 return@Thread
             }
-            if (closed) return@Thread
+            val reusable = preparedSession?.takeIf { it.port == port }
+            if (closed) {
+                reusable?.stopInBackground()
+                return@Thread
+            }
             runOnUiThread { if (!closed) status.setText(R.string.ace_connecting_source) }
-            val response = runCatching { AcePlaybackSession.open(port, source) }.getOrElse { error ->
+            val response = runCatching { reusable ?: AcePlaybackSession.open(port, source) }.getOrElse { error ->
                 val message = when (error) {
                     is AcePlaybackSession.PremiumRequired -> R.string.ace_premium_required
                     is ConnectException -> R.string.ace_engine_connection_lost
@@ -111,7 +119,7 @@ class AcePlaybackActivity : Activity() {
             }
             runOnUiThread {
                 if (closed) {
-                    stop(response)
+                    response.stopInBackground()
                     return@runOnUiThread
                 }
                 enginePort = port
@@ -158,24 +166,20 @@ class AcePlaybackActivity : Activity() {
     }
 
     private fun endSession() {
-        stop(session)
+        session?.stopInBackground()
         session = null
         enginePort = null
-    }
-
-    private fun stop(session: AcePlaybackSession?) {
-        if (session == null) return
-        Thread {
-            runCatching { session.stop() }.onFailure { Log.d(TAG, "Stop failed (${it.javaClass.simpleName})") }
-        }.start()
     }
 
     companion object {
         private const val TAG = "AcePlayback"
         const val EXTRA_CONTENT_ID = "com.airtv.receiver.CONTENT_ID"
         private const val EXTRA_INFOHASH = "com.airtv.receiver.ACE_INFOHASH"
+        private const val EXTRA_SESSION = "com.airtv.receiver.ACE_SESSION"
 
-        internal fun intent(context: Context, source: AceSource) = Intent(context, AcePlaybackActivity::class.java)
-            .putExtra(if (source.kind == AceSource.Kind.CONTENT_ID) EXTRA_CONTENT_ID else EXTRA_INFOHASH, source.id)
+        internal fun intent(context: Context, source: AceSource, session: AcePlaybackSession?) =
+            Intent(context, AcePlaybackActivity::class.java)
+                .putExtra(if (source.kind == AceSource.Kind.CONTENT_ID) EXTRA_CONTENT_ID else EXTRA_INFOHASH, source.id)
+                .putExtra(EXTRA_SESSION, session)
     }
 }

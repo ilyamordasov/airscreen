@@ -2,6 +2,8 @@ package com.airtv.receiver.ui
 
 import android.app.Activity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -24,6 +26,8 @@ import java.util.concurrent.Executors
 
 /** The programme guide and the independent P2P discovery sources have separate screens. */
 class P2pBroadcastsActivity : Activity() {
+    private data class CheckedStream(val session: AcePlaybackSession, val metrics: AceStreamProbe.Result)
+
     private lateinit var carousel: TvPosterCarousel<AceSource>
     private lateinit var engineStatus: TextView
     private lateinit var directoryStatus: TextView
@@ -31,11 +35,15 @@ class P2pBroadcastsActivity : Activity() {
     private lateinit var inspect: Button
     private val workers = Executors.newFixedThreadPool(2)
     private val probeWorker = Executors.newSingleThreadExecutor()
+    private val main = Handler(Looper.getMainLooper())
     private val checkedCards = mutableMapOf<AceSource, String>()
     private var directory = emptyList<AceCatalogue.DirectoryEntry>()
     private var search = emptyList<AceCatalogue.SearchEntry>()
     private var pending = 0
     private var checking = false
+    private var visible = false
+    private var prepared: Pair<AceSource, AcePlaybackSession>? = null
+    private val expirePrepared = Runnable { releasePrepared() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,7 +66,14 @@ class P2pBroadcastsActivity : Activity() {
         val metrics = resources.displayMetrics
         val scale = minOf(metrics.widthPixels / 960f, metrics.heightPixels / 540f)
         carousel = TvPosterCarousel(this, scale, TvChrome.dp(this, 4), showDots = false, focusUpId = inspect.id) {
-            if (!checking) startActivity(AcePlaybackActivity.intent(this, it))
+            if (!checking) {
+                val session = prepared?.takeIf { (source, _) -> source == it }?.second
+                if (session == null) releasePrepared() else {
+                    prepared = null
+                    main.removeCallbacks(expirePrepared)
+                }
+                startActivity(AcePlaybackActivity.intent(this, it, session))
+            }
         }
         carousel.onSelectionChanged = {
             retry.nextFocusDownId = it
@@ -78,6 +93,17 @@ class P2pBroadcastsActivity : Activity() {
         load()
     }
 
+    override fun onStart() {
+        super.onStart()
+        visible = true
+    }
+
+    override fun onStop() {
+        visible = false
+        releasePrepared()
+        super.onStop()
+    }
+
     override fun onDestroy() {
         workers.shutdownNow()
         probeWorker.shutdownNow()
@@ -86,6 +112,7 @@ class P2pBroadcastsActivity : Activity() {
 
     private fun checkStream(source: AceSource) {
         if (checking) return
+        releasePrepared()
         checking = true
         inspect.setText(R.string.p2p_check_in_progress)
         checkedCards[source] = getString(R.string.p2p_check_in_progress)
@@ -95,14 +122,13 @@ class P2pBroadcastsActivity : Activity() {
             val result = port.mapCatching {
                 val session = AcePlaybackSession.open(it, source, timeout = 12_000)
                 try {
-                    AceStreamProbe.measure(this, session)
-                } finally {
-                    runCatching { session.stop() }.onFailure { failure ->
-                        Log.d(TAG, "Probe stop failed (${failure.javaClass.simpleName})")
-                    }
+                    CheckedStream(session, AceStreamProbe.measure(this, session))
+                } catch (error: Exception) {
+                    session.stopInBackground()
+                    throw error
                 }
             }
-            val description = result.fold(::describeProbe) {
+            val description = result.fold({ describeProbe(it.metrics) }) {
                 Log.w(TAG, "Stream check failed (${it.javaClass.simpleName})")
                 val engineLost = it is ConnectException || port.getOrNull()?.let { p ->
                     !AceStreamEngine.isReady(p)
@@ -114,6 +140,12 @@ class P2pBroadcastsActivity : Activity() {
                 })
             }
             runOnUiThread {
+                result.getOrNull()?.session?.let { session ->
+                    if (visible && !isFinishing && !isDestroyed) {
+                        prepared = source to session
+                        main.postDelayed(expirePrepared, 25_000)
+                    } else session.stopInBackground()
+                }
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 checking = false
                 checkedCards[source] = description
@@ -121,6 +153,12 @@ class P2pBroadcastsActivity : Activity() {
                 inspect.setText(R.string.p2p_check_stream)
             }
         }
+    }
+
+    private fun releasePrepared() {
+        main.removeCallbacks(expirePrepared)
+        prepared?.second?.stopInBackground()
+        prepared = null
     }
 
     private fun describeProbe(result: AceStreamProbe.Result): String {
