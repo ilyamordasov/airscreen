@@ -330,7 +330,9 @@ class UpdateActivity : Activity() {
 
     @Suppress("DEPRECATION")
     private fun validateApk(file: File, expectedVersion: String? = null) {
-        val flags = if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
+        // Some Android builds collect archive signing data only when GET_SIGNATURES is set.
+        val flags = PackageManager.GET_SIGNATURES or
+            if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else 0
         val candidate = requireNotNull(packageManager.getPackageArchiveInfo(file.absolutePath, flags)) {
             getString(R.string.update_invalid_apk)
         }
@@ -340,13 +342,17 @@ class UpdateActivity : Activity() {
         require(newCode > BuildConfig.VERSION_CODE) { getString(R.string.update_old_apk) }
         val installed = packageManager.getPackageInfo(packageName, flags)
         val signers = apkSigners(candidate)
-        require(signers.isNotEmpty() && signers == apkSigners(installed)) { getString(R.string.update_wrong_signer) }
+        val installedSigners = apkSigners(installed)
+        require(signers.isNotEmpty() && installedSigners.isNotEmpty()) {
+            getString(R.string.update_signature_unavailable)
+        }
+        require(signers == installedSigners) { getString(R.string.update_wrong_signer) }
     }
 
     @Suppress("DEPRECATION")
-    private fun apkSigners(info: PackageInfo) = if (Build.VERSION.SDK_INT >= 28) {
-        info.signingInfo?.apkContentsSigners?.toSet().orEmpty()
-    } else info.signatures?.toSet().orEmpty()
+    private fun apkSigners(info: PackageInfo) =
+        (if (Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else null)
+            ?.takeIf { it.isNotEmpty() }?.toSet() ?: info.signatures.orEmpty().toSet()
 
     private fun readyToInstall(file: File) {
         downloaded?.takeIf { it != file }?.delete()

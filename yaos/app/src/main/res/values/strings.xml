@@ -87,6 +87,7 @@
     <string name="update_wrong_version">Версия APK не совпадает с релизом.</string>
     <string name="update_old_apk">Этот APK той же версии или старее установленной.</string>
     <string name="update_wrong_signer">APK подписан другим ключом.</string>
+    <string name="update_signature_unavailable">Android не смог прочитать подпись приложения.</string>
     <string name="action_resume">К трансляции</string>
     <string name="action_exit">Выйти</string>
     <string name="action_continue">Продолжить</string>
