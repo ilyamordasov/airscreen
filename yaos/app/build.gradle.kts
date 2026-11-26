@@ -10,6 +10,10 @@ val appVersionCode = (findProperty("versionCode") as String?)?.toInt() ?: 100
 val embeddedAceDir = providers.gradleProperty("embeddedAceDir").orNull?.let(::file)
 val embeddedAce = embeddedAceDir != null
 val embeddedAceRelease = providers.gradleProperty("embeddedAceRelease").orNull == "true"
+val otaGitHubClientId = providers.gradleProperty("otaGitHubClientId").orElse("").get()
+require(otaGitHubClientId.isEmpty() || otaGitHubClientId.matches(Regex("[a-zA-Z0-9.]{10,64}"))) {
+    "Invalid GitHub App client ID."
+}
 check(!embeddedAceRelease || (embeddedAce && System.getenv("GITHUB_ACTIONS") != "true")) {
     "An embedded Ace Stream release requires a local payload and local signing."
 }
@@ -27,6 +31,7 @@ android {
         versionName = appVersionName
         manifestPlaceholders["appLabel"] = "@string/app_name"
         buildConfigField("boolean", "EMBEDDED_ACE", embeddedAce.toString())
+        buildConfigField("String", "OTA_GITHUB_CLIENT_ID", "\"$otaGitHubClientId\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {

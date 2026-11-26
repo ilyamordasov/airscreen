@@ -35,7 +35,7 @@ import com.airtv.receiver.airplay.ReceiverState
 import com.airtv.receiver.service.AirPlayService
 import com.airtv.receiver.settings.ReceiverPreferences
 import com.airtv.receiver.settings.ReceiverSettings
-import com.airtv.receiver.update.ReleaseClient
+import com.airtv.receiver.update.UpdateAccess
 import com.airtv.receiver.update.ReleaseVersion
 import kotlin.math.min
 
@@ -381,7 +381,7 @@ class MainActivity : Activity() {
 
     private fun checkForUpdates() {
         Thread {
-            val latest = runCatching { ReleaseClient().latest() }.getOrNull()
+            val latest = runCatching { UpdateAccess.client(this).latest() }.getOrNull()
             val current = ReleaseVersion.parse(BuildConfig.VERSION_NAME)
             if (latest != null && (current == null || latest.version > current)) {
                 runOnUiThread {

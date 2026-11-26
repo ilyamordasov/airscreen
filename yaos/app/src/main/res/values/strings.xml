@@ -68,6 +68,16 @@
     <string name="update_installer_missing">На телевизоре не найден установщик APK.</string>
     <string name="update_error">Не удалось обновить: %1$s</string>
     <string name="update_local_action">Установить APK по сети</string>
+    <string name="update_github_login">Войти через GitHub</string>
+    <string name="update_github_qr">QR-код для входа через GitHub</string>
+    <string name="update_github_help">Отсканируйте QR-код телефоном или откройте github.com/login/device. Введите код с экрана и подтвердите вход.</string>
+    <string name="update_github_required">Войдите через GitHub, чтобы получать обновления AirScreen.</string>
+    <string name="update_github_requesting">Запрашиваем код на GitHub…</string>
+    <string name="update_github_waiting">Ждём подтверждения на GitHub…</string>
+    <string name="update_github_denied">Вход отменён. Вернитесь к обновлениям и попробуйте снова.</string>
+    <string name="update_github_expired">Срок действия кода истёк. Вернитесь к обновлениям за новым кодом.</string>
+    <string name="update_github_no_access">Этому аккаунту недоступны обновления AirScreen.</string>
+    <string name="update_github_failed">Не удалось войти через GitHub. Попробуйте ещё раз.</string>
     <string name="update_local_qr">QR-код обновления AirScreen</string>
     <string name="update_local_help">Откройте адрес на компьютере или отсканируйте QR-код телефоном. Выберите APK и введите код с ТВ.</string>
     <string name="update_local_back">К обновлениям</string>

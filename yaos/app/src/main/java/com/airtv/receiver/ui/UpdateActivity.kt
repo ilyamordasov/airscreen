@@ -11,8 +11,10 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.view.Gravity
+import android.view.View
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -21,10 +23,11 @@ import android.widget.TextView
 import androidx.core.content.FileProvider
 import com.airtv.receiver.BuildConfig
 import com.airtv.receiver.R
+import com.airtv.receiver.update.GitHubDeviceAuth
 import com.airtv.receiver.update.LocalUpdateServer
-import com.airtv.receiver.update.ReleaseClient
 import com.airtv.receiver.update.ReleaseInfo
 import com.airtv.receiver.update.ReleaseVersion
+import com.airtv.receiver.update.UpdateAccess
 import fi.iki.elonen.NanoHTTPD
 import java.io.File
 import java.security.SecureRandom
@@ -36,10 +39,13 @@ class UpdateActivity : Activity() {
     private lateinit var progress: ProgressBar
     private lateinit var action: Button
     private lateinit var localAction: Button
+    private lateinit var authAction: Button
     private lateinit var content: FrameLayout
     private lateinit var overview: LinearLayout
     private var localServer: LocalUpdateServer? = null
     private var localPanel: TvPairingPanel? = null
+    private var authPanel: TvPairingPanel? = null
+    private var authWorker: Thread? = null
     private val main = Handler(Looper.getMainLooper())
     private var release: ReleaseInfo? = null
     private var downloaded: File? = null
@@ -64,6 +70,10 @@ class UpdateActivity : Activity() {
         localAction = TvChrome.action(this, getString(R.string.update_local_action)).apply {
             setOnClickListener { openLocalUpdate() }
         }
+        authAction = TvChrome.action(this, getString(R.string.update_github_login), true).apply {
+            visibility = View.GONE
+            setOnClickListener { openGitHubLogin() }
+        }
         overview = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
@@ -79,6 +89,7 @@ class UpdateActivity : Activity() {
         overview.addView(panel, LinearLayout.LayoutParams(-1, -2))
         overview.addView(LinearLayout(this).apply {
             addView(action, LinearLayout.LayoutParams(0, dp(60), 1f))
+            addView(authAction, LinearLayout.LayoutParams(0, dp(60), 1f))
             addView(localAction, LinearLayout.LayoutParams(0, dp(60), 1f).apply { marginStart = dp(12) })
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) })
         content = FrameLayout(this).apply { addView(overview, FrameLayout.LayoutParams(-1, -1)) }
@@ -99,19 +110,95 @@ class UpdateActivity : Activity() {
     override fun onDestroy() {
         closed = true
         localServer?.stop()
+        authWorker?.interrupt()
         super.onDestroy()
     }
 
     override fun onStop() {
         if (localPanel != null) closeLocalUpdate()
+        if (authPanel != null) closeGitHubLogin()
         super.onStop()
     }
 
-    @Deprecated("Android TV Back first closes the local update form")
+    @Deprecated("Android TV Back first closes an open update form")
     override fun onBackPressed() = goBack()
 
     private fun goBack() {
-        if (localPanel == null) finish() else closeLocalUpdate()
+        when {
+            authPanel != null -> closeGitHubLogin()
+            localPanel != null -> closeLocalUpdate()
+            else -> finish()
+        }
+    }
+
+    private fun openGitHubLogin() {
+        if (authPanel != null || !UpdateAccess.enabled) return
+        val panel = TvPairingPanel(this, getString(R.string.update_github_qr),
+            getString(R.string.update_github_login), getString(R.string.update_github_help))
+        val back = TvChrome.action(this, getString(R.string.update_local_back)).apply {
+            setOnClickListener { closeGitHubLogin() }
+        }
+        panel.setAction(back)
+        panel.showFeedback(getString(R.string.update_github_requesting))
+        authPanel = panel
+        overview.visibility = View.GONE
+        content.addView(panel, FrameLayout.LayoutParams(-1, -1))
+        back.requestFocus()
+        authWorker = Thread {
+            try {
+                val auth = UpdateAccess.deviceAuth()
+                val request = auth.start()
+                val deadline = SystemClock.elapsedRealtime() + request.expiresIn * 1000L
+                showLoginResult(panel) {
+                    panel.showCode(GitHubDeviceAuth.VERIFY_URL, request.userCode)
+                    panel.showFeedback(getString(R.string.update_github_waiting))
+                }
+                var interval = request.interval * 1000L
+                while (SystemClock.elapsedRealtime() + interval < deadline) {
+                    Thread.sleep(interval)
+                    val result = auth.poll(request)
+                    val credential = result.credential
+                    if (credential != null) {
+                        UpdateAccess.authorize(this, credential)
+                        showLoginResult(panel) {
+                            closeGitHubLogin()
+                            checkLatest()
+                        }
+                        return@Thread
+                    }
+                    when (result.state) {
+                        GitHubDeviceAuth.State.SLOW_DOWN -> interval += 5000
+                        GitHubDeviceAuth.State.PENDING -> Unit
+                        GitHubDeviceAuth.State.EXPIRED -> break
+                        GitHubDeviceAuth.State.DENIED -> {
+                            showLoginResult(panel) { panel.showFeedback(getString(R.string.update_github_denied)) }
+                            return@Thread
+                        }
+                        null -> error("Invalid device authorization result")
+                    }
+                }
+                showLoginResult(panel) { panel.showFeedback(getString(R.string.update_github_expired)) }
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            } catch (_: UpdateAccess.Required) {
+                showLoginResult(panel) { panel.showFeedback(getString(R.string.update_github_no_access)) }
+            } catch (_: Exception) {
+                showLoginResult(panel) { panel.showFeedback(getString(R.string.update_github_failed)) }
+            }
+        }.also { it.start() }
+    }
+
+    private fun showLoginResult(panel: TvPairingPanel, action: () -> Unit) {
+        runOnUiThread { if (!closed && authPanel === panel) action() }
+    }
+
+    private fun closeGitHubLogin() {
+        authWorker?.interrupt()
+        authWorker = null
+        authPanel?.let(content::removeView)
+        authPanel = null
+        overview.visibility = View.VISIBLE
+        authAction.requestFocus()
     }
 
     private fun openLocalUpdate() {
@@ -168,12 +255,15 @@ class UpdateActivity : Activity() {
         status.setText(R.string.update_checking)
         val previousFile = downloaded
         Thread {
-            val result = runCatching { ReleaseClient().latest() }
+            val result = runCatching { UpdateAccess.client(this).latest() }
             runOnUiThread {
                 if (closed) return@runOnUiThread
                 busy = false
                 if (downloaded !== previousFile) return@runOnUiThread
                 result.onSuccess { found ->
+                    val restoreFocus = authAction.hasFocus()
+                    authAction.visibility = View.GONE
+                    action.visibility = View.VISIBLE
                     val current = ReleaseVersion.parse(BuildConfig.VERSION_NAME)
                     release = found?.takeIf { current == null || it.version > current }
                     status.text = when {
@@ -188,6 +278,7 @@ class UpdateActivity : Activity() {
                         else -> R.string.update_download
                     })
                     action.isEnabled = true
+                    if (restoreFocus) action.requestFocus()
                     action.setOnClickListener {
                         when {
                             release == null -> checkLatest()
@@ -213,7 +304,7 @@ class UpdateActivity : Activity() {
             val result = runCatching {
                 val directory = File(cacheDir, "updates").apply { mkdirs() }
                 val temporary = File(directory, "download.tmp.apk")
-                ReleaseClient().download(selected, temporary) { percent ->
+                UpdateAccess.client(this).download(selected, temporary) { percent ->
                     runOnUiThread { if (!closed) progress.progress = percent }
                 }
                 try {
@@ -268,7 +359,7 @@ class UpdateActivity : Activity() {
     }
 
     private fun openReleasePage(selected: ReleaseInfo) {
-        val url = "https://github.com/ilyamordasov/airscreen/releases/tag/v${selected.version}"
+        val url = "${selected.downloadUrl.substringBefore("/download/")}/tag/v${selected.version}"
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (_: ActivityNotFoundException) {
@@ -314,6 +405,14 @@ class UpdateActivity : Activity() {
     }
 
     private fun showError(error: Throwable) {
+        if (error is UpdateAccess.Required) {
+            release = null
+            status.setText(R.string.update_github_required)
+            action.visibility = View.GONE
+            authAction.visibility = View.VISIBLE
+            if (!localAction.hasFocus() || !overview.hasFocus()) authAction.requestFocus()
+            return
+        }
         status.text = getString(R.string.update_error, error.localizedMessage.orEmpty())
         action.setText(R.string.action_refresh)
         action.isEnabled = true
